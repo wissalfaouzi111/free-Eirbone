@@ -1,0 +1,20 @@
+# Fichiers compilés (C & Java)
+*.class
+*.o
+*.out
+*.exe
+bin/*
+
+# Fichiers de données (P2P)
+data/*
+!data/.gitkeep
+
+# Fichiers des IDE
+.vscode/
+.idea/
+*.iml
+*.eclipse/
+
+# Fichiers systèmes
+.DS_Store
+Thumbs.db
