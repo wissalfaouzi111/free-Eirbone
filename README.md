@@ -1,60 +1,47 @@
-# Feuille de Route de l'équipe
+# Feuille de route Eirbone (P2P)
 
-**Le principe du projet :** Dans un système réseau classique (Client-Serveur), si tu veux télécharger une vidéo, tu vas sur YouTube (le Serveur central). Si YouTube tombe en panne, personne n'a la vidéo. Dans notre projet (en P2P), tout le monde a des bouts de données de 1024 octets et on se les repartage entre nous. 
-
----
-
-## 🛠️ Première itération : Construire les fondations (Tests manuels)
-
-**I - Le Tracker (Le centre de contrôle)**
-
-* **C'est quoi ?** L'annuaire central qui sait qui possède quelle donnée. Il n'a aucun fichier, il a juste un registre. Il tourne sans s'arrêter et attend des messages textes.
-* **Comment ?** On doit le coder en C. On va copier le fichier `server.c` du cours (qui ouvre un port avec `bind()` et écoute avec `listen()`).
-* **À faire :** Une fois la connexion réussie, il faut coder de quoi lire les mots envoyés par les Peers (comme "look" ou "announce") et les sauvegarder dans une liste en mémoire.
-
-**II - Le Peer "Client" (Celui qui demande)**
-
-* **C'est quoi ?** La partie de notre programme qui parle au Tracker pour s'annoncer ou chercher un fichier.
-* **Comment ?** On copie le fichier `Client.java` du prof (qui crée un `Socket` pour se brancher au Tracker).
-* **À faire :** Au lieu d'envoyer "bonjour", on doit lui faire envoyer les phrases exactes du sujet, par exemple : `announce listenPort 6881 seed video.mp4`.
-
-**III - Le Peer "Échangeur" (Celui qui partage)**
-
-* **C'est quoi ?** La partie qui permet à notre ordinateur d'envoyer des bouts de fichiers directement aux copains (sans passer par le Tracker).
-* **Comment ?** On utilise le fichier `Serveur.java` du prof pour utiliser un `ServerSocket`.
-* **À faire :** Écrire une fonction Java qui prend un fichier sur le disque dur, le coupe en petits morceaux de 1024 octets, et les envoie dans le tuyau quand un autre Peer le demande.
-
-### 👥 Les Rôles pour la Phase 1 :
-
-* **L'équipe Annuaire (2 personnes - C) :** Ils ouvrent `server.c`. Leur but cette semaine est de réussir à le compiler, le lancer, et faire en sorte qu'il affiche à l'écran les messages reçus.
-* **L'équipe Téléphone (2 personnes - Java) :** Elles ouvrent `Client.java` et `Serveur.java`. Leur but : faire tourner le Serveur sur un PC, le Client sur un autre, et réussir à s'envoyer le mot "Coucou" sur le réseau.
-* **L'équipe Ciseaux (1 personne - Java) :** Elle oublie le réseau ! Elle code un programme Java classique qui ouvre un fichier, le découpe en morceaux de 1024 octets, et teste de le reconstruire.
+**L'idée de base :** Dans un système Client-Serveur, si on veut une vidéo, on va sur un serveur central (comme YouTube). Si YouTube plante, on n'a plus rien. En P2P on a tous des bouts de fichiers de 1024 octets sur nos machines et on se les échange tous entre nous en direct.
 
 ---
 
-## 🚀 Deuxième itération : Le vrai protocole et l'automatisation
+## 🛠️ Étape 1 : Le cœur du système
 
-*(Une fois que nos tests avec "Coucou" fonctionnent, on passe aux choses sérieuses)*
+**I - Le tracker**
 
-**I - Configurations & Variables**
+* **C'est quoi ?** C'est le registre central qui garde en mémoire qui a quoi.
+* **Comment on fait ?** On part de `server.c`. Mais au lieu de juste faire un "écho", on va lui apprendre à lire !
+* **Le but :** Quand il reçoit le texte `announce listenPort 6881 seed video.mp4`, il doit découper cette phrase, comprendre que le port est 6881, et sauvegarder ces infos dans une "structure" (un tableau de structs en C) pour s'en souvenir.
 
-* **Fichier config :** Finies les adresses IP écrites en dur dans le code. On doit lire le fichier `config.ini` pour savoir sur quel port le Tracker écoute et où sauvegarder les fichiers.
+**II - Le peer "client"**
 
-**II - Protocole & Multiplexage (Le gros du travail)**
+* **C'est quoi ?** Le programme qui s'annonce au tracker.
+* **Comment on fait ?** On part de `Client.java`.
+* **Le but :** Dès le lancement, ce programme doit lire notre fichier `config.ini` pour trouver l'adresse du tracker. Ensuite, il se connecte et envoie la vraie commande `announce`. **Surtout :** il ne doit pas faire de `.close()` tout de suite ! Il doit implémenter le "keep-alive" (garder la connexion ouverte en faisant une boucle infinie qui attend qu'on tape au clavier).
 
-* **Les commandes :** Implémentation complète des commandes texte du sujet (`announce`, `look`, `getpieces`, `update`).
-* **Le BufferMap :** Coder la chaîne de caractères (en Base64) qui indique quels morceaux de fichiers on possède pour l'envoyer aux autres.
-* **Le Multiplexage C :** Le Tracker doit gérer des dizaines de connexions. Le prof exige d'utiliser la fonction `select()` en C pour surveiller toutes les portes d'entrée en même temps sans crasher.
-* **Le Keep-Alive :** Ne pas fermer la connexion TCP avec `close()` après chaque message, mais la garder ouverte.
+**III - Le peer "échangeur" et la donnée**
 
-**III - Interface Utilisateur**
+* **C'est quoi ?** La gestion des fichiers sur nos PC.
+* **Comment on fait ?** On mélange la manipulation de fichiers et `Serveur.java`.
+* **Le but :** Créer une classe qui prend un fichier, le découpe en morceaux de 1024 octets, calcule le "hash MD5" (l'empreinte digitale) de chaque morceau, et prépare tout ça pour qu'on puisse l'envoyer plus tard.
 
-* **Serveur HTTP :** Créer un petit script (le prof autorise Python) pour embarquer une interface Web qui affiche nos téléchargements en cours joliment dans un navigateur.
+### 👥 Répartition pour cette semaine :
 
-### 👥 Les Rôles pour la Phase 2 :
+* **L'équipe annuaire (2 personnes sur le C) :** Créer la `struct` en C pour représenter un Peer. Réussir à découper le message texte reçu avec les espaces, et remplir le tableau avec les bonnes infos.
+* **L'équipe téléphone (2 personnes sur le Java) :** Créer le lecteur du fichier `config.ini`. Coder le client Java pour qu'il envoie la vraie commande `announce` générée automatiquement avec les bonnes valeurs, sans jamais couper la connexion TCP (lkeep-alive).
+* **L'équipe ciseaux (1 personne sur le Java) :** Faire le découpage des fichiers locaux en pièces de 1024 octets ET commencer à regarder comment générer le MD5 d'une pièce en Java pour vérifier qu'elle n'est pas corrompue.
 
-* **L'Architecte C (Tracker) :** Gère la boucle `select()` dans le Tracker et le tableau d'enregistrement des Peers en mémoire.
-* **L'Expert Réseau Java :** Gère l'envoi/réception de la commande `data` (qui mélange le texte et les données binaires du fichier).
-* **Le "Traducteur" (Parsing) :** Traite les chaînes de caractères (Regex, split) pour extraire les bonnes informations des messages textes envoyés sur le réseau.
-* **Le Gestionnaire de Données :** Gère l'algorithmique du BufferMap, la génération du hash MD5 et la vérification des fichiers téléchargés.
-* **L'Intégrateur / Chef de projet :** Code le serveur HTTP/Python, gère le lecteur de `config.ini` et rassemble nos codes sur Thor (Git) pour préparer la démo de la séance 6.
+---
+
+## 🚀 Étape 2 : Le mode multi-utilisateurs 
+
+**I - Le multiplexage C (La priorité absolue)**
+
+* Le tracker actuel crashe ou bloque s'il y a deux personnes en même temps. L'équipe C va devoir rajouter la fonction `select()`. Ça permet au serveur d'écouter plusieurs sockets en même temps avec un seul thread.
+
+**II - Le BufferMap et le binaire**
+
+* **Le BufferMap :** Coder la chaîne (en Base64) qui résume toutes les pièces qu'on a.
+* **La commande Data :** Réussir à envoyer un message qui contient à la fois du texte (l'en-tête de la commande) et du binaire pur (le bout du fichier .mp4 de 1024 octets) sans que ça bug.
+
+**III - L'interface web**
+* Créer une interface  simple qui affiche les fichiers disponibles et les pièces qu'on a. Et permet de lancer le téléchargement d'un fichier en cliquant dessus ou d'en ajouter un nouveau.
