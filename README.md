@@ -26,15 +26,15 @@
 
 ### 👥 Répartition pour cette semaine :
 
-* **L'équipe annuaire (2 personnes sur le C) :** Créer la `struct` en C pour représenter un Peer. Réussir à découper le message texte reçu avec les espaces, et remplir le tableau avec les bonnes infos.
-* **L'équipe téléphone (2 personnes sur le Java) :** Créer le lecteur du fichier `config.ini`. Coder le client Java pour qu'il envoie la vraie commande `announce` générée automatiquement avec les bonnes valeurs, sans jamais couper la connexion TCP (lkeep-alive).
-* **L'équipe ciseaux (1 personne sur le Java) :** Faire le découpage des fichiers locaux en pièces de 1024 octets ET commencer à regarder comment générer le MD5 d'une pièce en Java pour vérifier qu'elle n'est pas corrompue.
+* **L'équipe annuaire (2 personnes) :** Créer la `struct` en C pour représenter un Peer. Réussir à découper le message texte reçu avec les espaces, et remplir le tableau avec les bonnes infos.
+* **L'équipe téléphone (2 personnes) :** Créer le lecteur du fichier `config.ini`. Coder le client Java pour qu'il envoie la vraie commande `announce` générée automatiquement avec les bonnes valeurs, sans jamais couper la connexion TCP (lkeep-alive).
+* **L'équipe ciseaux (1 personne) :** Faire le découpage des fichiers locaux en pièces de 1024 octets ET commencer à regarder comment générer le MD5 d'une pièce en Java pour vérifier qu'elle n'est pas corrompue.
 
 ---
 
 ## 🚀 Étape 2 : Le mode multi-utilisateurs 
 
-**I - Le multiplexage C (La priorité absolue)**
+**I - Le multiplexage C**
 
 * Le tracker actuel crashe ou bloque s'il y a deux personnes en même temps. L'équipe C va devoir rajouter la fonction `select()`. Ça permet au serveur d'écouter plusieurs sockets en même temps avec un seul thread.
 
