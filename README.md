@@ -2,8 +2,6 @@
 
 **L'idée de base :** Dans un système Client-Serveur, si on veut une vidéo, on va sur un serveur central (comme YouTube). Si YouTube plante, on n'a plus rien. En P2P on a tous des bouts de fichiers de 1024 octets sur nos machines et on se les échange tous entre nous en direct.
 
-Your markdown link syntax is incorrect. Use this format instead:
-
 **Jira :** [Gestion de projet Eirbone](https://eirbone.atlassian.net/jira/software/projects/EIR/boards/1?atlOrigin=eyJpIjoiMDM5NWI5ZmQxZjM1NDQyMWJmMWM0OGU2NTE3YjRiMWQiLCJwIjoiaiJ9)
 
 ---
