@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include <string.h>
 #define BUFLEN 256
 
 void error(char *msg)
@@ -15,9 +15,19 @@ void error(char *msg)
     exit(1);
 }
 
+//découper une chaîne de caractères par des espacces
+void add_input(char str[]){
+    char *token = strtok(str, " "); // Nous avons utlisé copilot pour comprendre le fonctionnement de strtok.
+    while (token != NULL) {
+        printf("%s\n", token);
+        token = strtok(NULL, " ");
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    int sockfd, newsockfd, portno, cli_socket_len;
+    int sockfd, newsockfd, portno;
+    socklen_t cli_socket_len;
     char buffer[BUFLEN];
     struct sockaddr_in serv_addr, cli_addr;
     int n;
@@ -35,7 +45,7 @@ int main(int argc, char *argv[])
 
     serv_addr.sin_family = AF_INET;
     //serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr.s_addr);
+    inet_pton(AF_INET, "0.0.0.0", &serv_addr.sin_addr.s_addr);// On a remplacer 127.0.0.1 par 0.0.0.0 pour que le serveur puisse accepter les connexions de n'importe quelle adresse IP
     serv_addr.sin_port = htons(portno);
 
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) error("ERROR on bind()");
@@ -60,7 +70,7 @@ int main(int argc, char *argv[])
     getchar(); 
     printf("OK\n");
 
-    n = read(newsockfd, buffer, 10);
+    n = read(newsockfd, buffer, BUFLEN); //on a modifié la taille de buffer lu(10)
     if (n < 0) error("ERROR reading from socket");
     printf("Here is the message: (size: %d bytes) %s\n", n, buffer);
 
@@ -70,5 +80,7 @@ int main(int argc, char *argv[])
 
     n = write(newsockfd, "I got your message",18);
     if (n < 0) error("ERROR writing to socket");
+
+    add_input(buffer);
     return 0; 
 }
