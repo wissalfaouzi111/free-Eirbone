@@ -28,7 +28,7 @@ Your markdown link syntax is incorrect. Use this format instead:
 * **Comment on fait ?** On mélange la manipulation de fichiers et `Serveur.java`.
 * **Le but :** Créer une classe qui prend un fichier, le découpe en morceaux de 1024 octets, calcule le "hash MD5" (l'empreinte digitale) de chaque morceau, et prépare tout ça pour qu'on puisse l'envoyer plus tard.
 
-### 👥 Répartition pour cette semaine :
+### 👥 Répartition :
 
 * **L'équipe annuaire (2 personnes) :** Créer la `struct` en C pour représenter un Peer. Réussir à découper le message texte reçu avec les espaces, et remplir le tableau avec les bonnes infos.
 * **L'équipe téléphone (2 personnes) :** Créer le lecteur du fichier `config.ini`. Coder le client Java pour qu'il envoie la vraie commande `announce` générée automatiquement avec les bonnes valeurs, sans jamais couper la connexion TCP (lkeep-alive).
@@ -48,4 +48,5 @@ Your markdown link syntax is incorrect. Use this format instead:
 * **La commande Data :** Réussir à envoyer un message qui contient à la fois du texte (l'en-tête de la commande) et du binaire pur (le bout du fichier .mp4 de 1024 octets) sans que ça bug.
 
 **III - L'interface web**
+
 * Créer une interface  simple qui affiche les fichiers disponibles et les pièces qu'on a. Et permet de lancer le téléchargement d'un fichier en cliquant dessus ou d'en ajouter un nouveau.
