@@ -52,15 +52,15 @@
 
 ## Diagramme de Gantt :
 
-| Date (Séance) | P1 | P2 | P3 | P4 | P5 |
+| Séance | P1 (Tracker C) | P2 (Parsing/Config C) | P3 (Réseau Java) | P4 (UI/Intégration Java) | P5 (Data Java) |
 | --- | --- | --- | --- | --- | --- |
-| **13/03** | EIR-4 | EIR-5 | EIR-8 | EIR-1 | EIR-2 |
-| **20/03** | EIR-4, EIR-6 | EIR-5, EIR-3 | EIR-8, EIR-9 | EIR-3 | EIR-11 |
-| **24/03** | EIR-6 | EIR-6 | EIR-10 | EIR-10 | EIR-11 |
-| **27/03** | EIR-7 | EIR-7 | EIR-10 | EIR-10 | EIR-12 |
-| **03/04** | EIR-7 | EIR-16 | EIR-13 | EIR-15 | EIR-13 |
-| **10/04** | EIR-16 | EIR-16 | EIR-16 | EIR-16 | EIR-16 |
-| **21/04** | EIR-7 | EIR-16 | EIR-14 | EIR-15 | EIR-14 |
-| **24/04** | EIR-16 | EIR-16 | EIR-14 | EIR-15 | EIR-14 |
-| **28/04** | EIR-16 | EIR-16 | EIR-16 | EIR-16 | EIR-16 |
+| **13/03** | EIR-10 | EIR-11 | EIR-14 | EIR-1, EIR-4 | EIR-3, EIR-17 |
+| **20/03** | EIR-10, EIR-12 | EIR-11, EIR-4 | EIR-14, EIR-15 | EIR-4, EIR-16 | EIR-17 |
+| **24/03** | EIR-12 | EIR-12 | EIR-15, EIR-16 | EIR-16 | EIR-18 |
+| **27/03** | EIR-13 | EIR-13 | EIR-16 | EIR-21 | EIR-19 |
+| **03/04** | EIR-13 | EIR-13 | EIR-20 | EIR-21 | EIR-20 |
+| **10/04** | EIR-22 | EIR-22 | EIR-22 | EIR-22 | EIR-22 |
+| **21/04** | EIR-13 | EIR-13 | EIR-20 | EIR-21 | EIR-20 |
+| **24/04** | EIR-22 | EIR-22 | EIR-20, EIR-22 | EIR-21, EIR-22 | EIR-20, EIR-22 |
+| **28/04** | EIR-22 | EIR-22 | EIR-22 | EIR-22 | EIR-22 |
 | **05/05** | Soutenance | Soutenance | Soutenance | Soutenance | Soutenance |
