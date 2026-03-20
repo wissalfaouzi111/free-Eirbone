@@ -10,6 +10,21 @@ public class Announce
     private static final int PIECE_SIZE = 1024;
 
 
+    public String look ( String... criteres)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("look [");
+        for(String critere : criteres){
+             sb.append(critere + " ");
+        }
+        if( criteres.length > 0){
+             sb.deleteCharAt(sb.length() - 1);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
     public String announce (Config config){
         StringBuilder announce = new StringBuilder();
 
