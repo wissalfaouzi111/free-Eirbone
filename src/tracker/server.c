@@ -8,20 +8,12 @@
 #include <arpa/inet.h>
 #include <string.h>
 #define BUFLEN 256
+#include "message.h"
 
 void error(char *msg)
 {
     perror(msg);
     exit(1);
-}
-
-//découper une chaîne de caractères par des espacces
-void add_input(char str[]){
-    char *token = strtok(str, " "); // Nous avons utlisé copilot pour comprendre le fonctionnement de strtok.
-    while (token != NULL) {
-        printf("%s\n", token);
-        token = strtok(NULL, " ");
-    }
 }
 
 int main(int argc, char *argv[])
@@ -81,6 +73,8 @@ int main(int argc, char *argv[])
     n = write(newsockfd, "I got your message",18);
     if (n < 0) error("ERROR writing to socket");
 
-    add_input(buffer);
+    MessageP2P *msg = add_message(buffer);
+    printf("Commande: %s\n", msg->commande);
+    printf("Port: %d\n", msg->port);
     return 0; 
 }
