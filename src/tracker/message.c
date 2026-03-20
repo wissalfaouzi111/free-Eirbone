@@ -12,21 +12,10 @@
 #define LITSEN NULL
 #define DEFAULT_PORT 8888
 
-MessageP2P *add_message(char str[]){
 
-    MessageP2P *msg = malloc(sizeof(MessageP2P));
-    char *token = strtok(str, " "); // Nous avons utlisé copilot pour comprendre le fonctionnement de strtok.
-    strncpy(msg->commande, token, sizeof(msg->commande));
-    if (strncmp(msg->commande, "announce", sizeof(msg->commande)) != 0)
-    {
-        return parse_announce(str, msg);
-    }
-    return 1;
-}
 
 MessageP2P *parse_announce(char str[], MessageP2P *msg)
 {
-    MessageP2P *msg = add_message(str);
     char *token = strtok(str, " ");
     int i = 0;
     while (token != NULL)
@@ -38,7 +27,7 @@ MessageP2P *parse_announce(char str[], MessageP2P *msg)
         {
             if (strcmp(token, "litsen") == 0)
             {
-                msg->port = LITSEN;
+                // msg->port = LITSEN;
             }
             else
             {
@@ -47,13 +36,26 @@ MessageP2P *parse_announce(char str[], MessageP2P *msg)
         }
         else if (i == 2)
         {
-            if (strcmp(msg->commande, "announce") == 0 && (msg->port == LITSEN))
+            if (strcmp(msg->commande, "announce") == 0 && (msg->port != DEFAULT_PORT))
             {
                 msg->port = atoi(token);
             }
         }
         token = strtok(NULL, " ");
         i++;
+    }
+    return msg;
+}
+
+MessageP2P *add_message(char str[])
+{
+
+    MessageP2P *msg = malloc(sizeof(MessageP2P));
+    char *token = strtok(str, " "); // Nous avons utlisé copilot pour comprendre le fonctionnement de strtok.
+    strncpy(msg->commande, token, sizeof(msg->commande));
+    if (strncmp(msg->commande, "announce", sizeof(msg->commande)) != 0)
+    {
+        return parse_announce(str, msg);
     }
     return msg;
 }
