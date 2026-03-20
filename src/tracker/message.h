@@ -40,6 +40,6 @@ typedef struct {
 
 } MessageP2P;
 
-
+MessageP2P *add_message(char str[]);
 
 #endif /* __MESSAGE_H__ */
