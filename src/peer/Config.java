@@ -1,7 +1,5 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-
+import java.io.*;
+import java.net.*;
 
 class Config {
 
@@ -9,21 +7,20 @@ class Config {
     String trackerHost;
     String trackerPort;
     String listenPort ;
-    String mode;
     File[] files;
 
 
 
-    public Config load(String fileName){
+    public static Config load(String fileName) throws IOException{
         Config config = new Config();
 
         BufferedReader buffer = new BufferedReader(new FileReader(fileName));
-        String line = buffer.readline() ;
-        line = line.trim();
+        String line ;
         
 
-        while(line != null ){
-            Strings[]  elements = line.split("=",2);
+        while((line = buffer.readLine()) != null ){
+            line = line.trim();
+            String[]  elements = line.split("=",2);
             String key = elements[0].trim();
             String value = elements[1].trim();
             if(key.equals("trackerHost")){
@@ -35,13 +32,11 @@ class Config {
             if(key.equals("listenPort")){
                 config.listenPort = value;
             }
-            if(key.equals("mode")){
-                config.mode = value;
-            }
             if(key.equals("dossier")){
                 File dossier = new File(value);
                 config.files = dossier.listFiles();
             }
+          
             
             
         }
@@ -49,8 +44,4 @@ class Config {
         return config;
     }
 
-
-
-
-    
 }
