@@ -9,7 +9,7 @@
 #include <string.h>
 #include "message.h"
 #define BUFLEN 256
-#define LITSEN NULL
+#define LISTEN NULL
 #define DEFAULT_PORT 8888
 
 
@@ -27,7 +27,7 @@ MessageP2P *parse_announce(char str[], MessageP2P *msg)
         {
             if (strcmp(token, "litsen") == 0)
             {
-                // msg->port = LITSEN;
+                // msg->port = LISTEN;
             }
             else
             {
