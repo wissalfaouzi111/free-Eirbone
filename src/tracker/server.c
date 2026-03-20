@@ -15,15 +15,6 @@ void error(char *msg)
     exit(1);
 }
 
-//découper une chaîne de caractères par des espacces
-void add_input(char str[]){
-    char *token = strtok(str, " "); // Nous avons utlisé copilot pour comprendre le fonctionnement de strtok.
-    while (token != NULL) {
-        printf("%s\n", token);
-        token = strtok(NULL, " ");
-    }
-}
-
 int main(int argc, char *argv[])
 {
     int sockfd, newsockfd, portno;
@@ -81,6 +72,6 @@ int main(int argc, char *argv[])
     n = write(newsockfd, "I got your message",18);
     if (n < 0) error("ERROR writing to socket");
 
-    add_input(buffer);
+    // add_input(buffer);
     return 0; 
 }
