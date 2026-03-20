@@ -52,7 +52,7 @@
 
 ## Diagramme de Gantt :
 
-| Séance | P1 (Tracker C) | P2 (Parsing/Config C) | P3 (Réseau Java) | P4 (UI/Intégration Java) | P5 (Data Java) |
+| Séance | Wissal | Melissa | Dina | Nour | David |
 | --- | --- | --- | --- | --- | --- |
 | **13/03** | EIR-10 | EIR-11 | EIR-14 | EIR-1, EIR-4 | EIR-3, EIR-17 |
 | **20/03** | EIR-10, EIR-12 | EIR-11, EIR-4 | EIR-14, EIR-15 | EIR-4, EIR-16 | EIR-17 |
