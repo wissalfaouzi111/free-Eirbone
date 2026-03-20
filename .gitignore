@@ -5,6 +5,10 @@
 *.exe
 bin/*
 
+# Exécutables (fichiers sans extension)
+!*/
+!*.*
+
 # Fichiers de données (P2P)
 data/*
 !data/.gitkeep
