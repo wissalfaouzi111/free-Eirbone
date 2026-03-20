@@ -12,8 +12,7 @@
 #define LITSEN NULL
 #define DEFAULT_PORT 8888
 
-MessageP2P *add_message(char str[])
-{
+MessageP2P *add_message(char str[]){
 
     MessageP2P *msg = malloc(sizeof(MessageP2P));
     char *token = strtok(str, " "); // Nous avons utlisé copilot pour comprendre le fonctionnement de strtok.
