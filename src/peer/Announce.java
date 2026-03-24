@@ -72,6 +72,17 @@ public class Announce
 
     }
 
+    public String interested(String key){
+        StringBuilder getfile = new StringBuilder();
+        getfile.append("interested");
+        getfile.append(" ");
+        getfile.append(key);
+        getfile.append("\n");
+        return getfile.toString();
+
+
+    }
+
   
     public String computeMD5(File fichier) {
 
