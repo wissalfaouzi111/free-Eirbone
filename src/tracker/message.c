@@ -9,53 +9,61 @@
 #include <string.h>
 #include "message.h"
 #define BUFLEN 256
-#define LISTEN NULL
 #define DEFAULT_PORT 8888
+#define MAX_TOKENS 50
 
-
-
-MessageP2P *parse_announce(char str[], MessageP2P *msg)
+MessageP2P *parse_announce(char **tokens, int num_tokens, MessageP2P *msg)
 {
-    char *token = strtok(str, " ");
-    int i = 0;
-    while (token != NULL)
+    if (num_tokens > 1)
     {
-        if (i == 0)
+        if (strcmp(tokens[1], "listen") == 0 || strcmp(tokens[1], "litsen") == 0)
         {
+            msg->port = DEFAULT_PORT; // Valeur par défaut si rien d'autre n'est précisé
         }
-        if (i == 1)
+        else
         {
-            if (strcmp(token, "litsen") == 0)
-            {
-                // msg->port = LISTEN;
-            }
-            else
-            {
-                msg->port = DEFAULT_PORT;
-            }
+            msg->port = DEFAULT_PORT;
         }
-        else if (i == 2)
+
+        if (num_tokens > 2 && msg->port != DEFAULT_PORT)
         {
-            if (strcmp(msg->commande, "announce") == 0 && (msg->port != DEFAULT_PORT))
-            {
-                msg->port = atoi(token);
-            }
+            msg->port = atoi(tokens[2]);
         }
-        token = strtok(NULL, " ");
-        i++;
     }
     return msg;
 }
 
 MessageP2P *add_message(char str[])
 {
-
     MessageP2P *msg = malloc(sizeof(MessageP2P));
-    char *token = strtok(str, " "); // Nous avons utlisé copilot pour comprendre le fonctionnement de strtok.
-    strncpy(msg->commande, token, sizeof(msg->commande));
-    if (strncmp(msg->commande, "announce", sizeof(msg->commande)) != 0)
+    memset(msg, 0, sizeof(MessageP2P)); // Initialisation à zéro de la structure
+
+    char *tokens[MAX_TOKENS];
+    int num_tokens = 0;
+
+    // Découpage de la chaîne en un tableau de tokens 
+    char *token = strtok(str, " ");
+    while (token != NULL && num_tokens < MAX_TOKENS)
     {
-        return parse_announce(str, msg);
+        tokens[num_tokens] = token;
+        num_tokens++;
+        token = strtok(NULL, " ");
     }
+
+    if (num_tokens > 0)
+    {
+        strncpy(msg->commande, tokens[0], sizeof(msg->commande) - 1);
+        msg->commande[sizeof(msg->commande) - 1] = '\0'; // Sécurité pour s'assurer qu'il y a un délimiteur
+
+        // On appelle la fonction spécifique au type de message (et passage du tableau)
+        if (strcmp(msg->commande, "announce") == 0)
+        {
+            return parse_announce(tokens, num_tokens, msg);
+        }
+        // else if (strcmp(msg->commande, "look") == 0) {
+        //     return parse_look(tokens, num_tokens, msg);
+        // }
+    }
+    
     return msg;
 }
