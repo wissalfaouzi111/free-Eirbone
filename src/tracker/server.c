@@ -10,14 +10,12 @@
 #define BUFLEN 256
 #include "message.h"
 
-void error(char *msg)
-{
+void error(char *msg){
     perror(msg);
     exit(1);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]){
     int sockfd, newsockfd, portno;
     socklen_t cli_socket_len;
     char buffer[BUFLEN];
