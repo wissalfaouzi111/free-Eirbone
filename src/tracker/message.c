@@ -14,6 +14,15 @@
 
 
 
+void parse_seed(char s[],int idx, MessageP2P *msg){
+    if (strcmp(s[idx], "seed") == 0){
+        
+        
+    }
+    else{
+        msg->nb_seed = atoi(s[idx]);
+    }
+}
 MessageP2P *parse_announce(char str[], MessageP2P *msg)
 {
     char *token = strtok(str, " ");
@@ -59,3 +68,5 @@ MessageP2P *add_message(char str[])
     }
     return msg;
 }
+
+
