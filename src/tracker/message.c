@@ -49,6 +49,18 @@ MessageP2P *parse_announce(char **tokens, int num_tokens, MessageP2P *msg) {
 }
 
 
+// parsing de look
+MessageP2P *parse_look(char **tokens, int num_tokens, MessageP2P *msg) {
+    for (int i = 1; i < num_tokens; i++) {
+        if (strcmp(tokens[i], "[") != 0 && strcmp(tokens[i], "]") != 0) {
+            strcpy(msg->hash_cible, tokens[i]);
+            break; // TODO : gérer le cas où il y a plusieurs criteres
+        }
+    }
+    return msg;
+}
+
+
 // FONCTION PRINCIPALE
 MessageP2P *add_message(char str[])
 {
