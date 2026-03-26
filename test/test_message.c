@@ -76,13 +76,12 @@ void test_announce_crochet_manquant() {
 
 // Main
 int main() {
-    printf("--- DEMARRAGE DES TESTS UNITAIRES (PARSING) ---\n");
     
     test_announce_valide();
     test_update_valide();
     test_announce_malforme_lettres_dans_port();
     test_announce_crochet_manquant();
     
-    printf("--- TOUS LES TESTS SONT PASSES AVEC SUCCES ! ---\n");
+    printf("\n✅\n");
     return 0;
 }
