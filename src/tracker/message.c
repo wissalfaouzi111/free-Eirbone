@@ -64,7 +64,6 @@ MessageP2P *parse_announce(char **tokens, int num_tokens, MessageP2P *msg) {
     return msg;
 }
 
-
 // parsing de look
 MessageP2P *parse_look(char **tokens, int num_tokens, MessageP2P *msg) {
     for (int i = 1; i < num_tokens; i++) {
