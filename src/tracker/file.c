@@ -13,5 +13,9 @@ FichierInfo *creer_fichier_info(const char *nom, long taille, int taille_piece, 
     info->taille_piece = taille_piece;
     strncpy(info->cle_md5, cle_md5, sizeof(info->cle_md5) - 1);
     info->cle_md5[sizeof(info->cle_md5) - 1] = '\0';
+
+    fichiers[nb_fichiers] = info;
+    nb_fichiers++;
+
     return info;
 }
