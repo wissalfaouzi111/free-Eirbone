@@ -4,6 +4,9 @@
 #include <assert.h> 
 #include "message.h"
 
+
+// Tests rédigés par IA et relu/réadaptés à notre besoins.
+
 // TEST 1 : Le cas parfait 
 void test_announce_valide() {
     printf("Test 1: Announce parfait... ");
