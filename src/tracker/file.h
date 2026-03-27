@@ -1,18 +1,20 @@
 #ifndef __FILE_H__
 #define __FILE_H__
+
 #define MAX_FICHIERS 100
 #define TAILLE_MD5 33 // 32 caractères + le caractère de fin de chaîne '\0'
+#define MAX_PEERS 20
 
+#include "peer.h"
 
 typedef struct {
     char nom[256];
     long taille;
     int taille_piece;      // Sera toujours 1024
-    char cle_md5[TAILLE_MD5]; 
-} FichierInfo;
+    char cle_md5[TAILLE_MD5];
+    Peer* peers[MAX_PEERS];
 
-FichierInfo* fichiers[MAX_FICHIERS]; // Tableau global pour stocker les fichiers
-int nb_fichiers = 0; // Compteur pour le nombre de fichiers stockés
+} FichierInfo;
 
 FichierInfo *creer_fichier_info(const char *nom, long taille, int taille_piece, const char *cle_md5);
 
@@ -25,5 +27,9 @@ char* get_name(const char *cle_md5);
 long get_size(const char *cle_md5);
 
 int get_piece_size(const char *cle_md5);
+
+void add_peer_to_file(const char *cle_md5, Peer *peer);
+
+int get_peers_for_file(const char *cle_md5, Peer[MAX_PEERS]);
 
 #endif /* __FILE_H__ */
