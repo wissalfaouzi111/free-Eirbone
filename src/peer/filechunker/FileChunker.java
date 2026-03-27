@@ -16,7 +16,7 @@ public class FileChunker {
     /**
      * Constructs a FileChunker for the given file, splitting it into pieces.
      * @param file the file to chunk
-     * @throws IOException if an I/O error occurs
+     * @throws IOException if an I/O error occurs 
      */
     public FileChunker(File file) throws IOException {
         this.pieces = splitFile(file);
