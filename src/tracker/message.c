@@ -229,5 +229,9 @@ MessageP2P *add_message(char str[])
     // TODO : la commande "data" n'est pas gérée car le strtok() casserait le binaire 
     
     return msg;
+<<<<<<< HEAD
 
 }
+=======
+}
+>>>>>>> refs/remotes/origin/tracker

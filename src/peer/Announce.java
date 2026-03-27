@@ -10,6 +10,21 @@ public class Announce
     private static final int PIECE_SIZE = 1024;
 
 
+    public String look ( String... criteres)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("look [");
+        for(String critere : criteres){
+             sb.append(critere + " ");
+        }
+        if( criteres.length > 0){
+             sb.deleteCharAt(sb.length() - 1);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
     public String announce (Config config){
         StringBuilder announce = new StringBuilder();
 
@@ -42,10 +57,32 @@ public class Announce
         announce.append("] leech []");
         return announce.toString();
 
+    }
+
+
+    
+    public String getfile(String key){
+        StringBuilder getfile = new StringBuilder();
+        getfile.append("getfile");
+        getfile.append(" ");
+        getfile.append(key);
+        getfile.append("\n");
+        return getfile.toString();
+
 
     }
 
-    
+    public String interested(String key){
+        StringBuilder getfile = new StringBuilder();
+        getfile.append("interested");
+        getfile.append(" ");
+        getfile.append(key);
+        getfile.append("\n");
+        return getfile.toString();
+
+
+    }
+
   
     public String computeMD5(File fichier) {
 

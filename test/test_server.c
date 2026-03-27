@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <assert.h>
 
+// Tests rédigés par IA et relu/réadaptés à notre besoins.
+
 void error(char *msg) {
     perror(msg);
     exit(1);
