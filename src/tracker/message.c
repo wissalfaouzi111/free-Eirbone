@@ -19,8 +19,6 @@ int is_number(const char *s) {
 }
 
 
-
-
 // Parsing de "announce" ou "update"
 MessageP2P *parse_announce(char **tokens, int num_tokens, MessageP2P *msg) {
     int mode = 0; // 0 = mode normal, 1 = mode seed, 2 = mode leech
@@ -121,8 +119,7 @@ MessageP2P *add_message(char str[])
 
 
 
-MessageP2P *parse_update(char **tokens, int num_tokens, MessageP2P *msg)
-{
+MessageP2P *parse_update(char **tokens, int num_tokens, MessageP2P *msg){
     int mode = 0; 
 
     msg->nb_seed = 0;
