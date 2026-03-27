@@ -3,65 +3,175 @@
 #include <string.h>
 #include "message.h"
 
-#define BUFLEN 256
-#define DEFAULT_PORT 6881
-#define MAX_TOKENS 50
+int is_number(const char *s){
+    if (s == NULL || *s == '\0')
+        return 0;
 
-
-
-
-int is_number(const char *s) {
-    if (*s == '\0') return 0;
-    for (int i = 0; s[i]; i++) {
-        if (s[i] < '0' || s[i] > '9') return 0;
+    for (int i = 0; s[i] != '\0'; i++)
+    {
+        if (s[i] < '0' || s[i] > '9')
+            return 0;
     }
     return 1;
 }
 
+// lire une liste de clés
+int lire_liste_cles(char **tokens, int i, int n,
+                    char dest[][TAILLE_MD5], int *nb)
+{
+    if (i >= n || strcmp(tokens[i], "[") != 0)
+        return -1;
 
-// Parsing de "announce" ou "update"
-MessageP2P *parse_announce(char **tokens, int num_tokens, MessageP2P *msg) {
-    int mode = 0; // 0 = mode normal, 1 = mode seed, 2 = mode leech
+
+    i++;
+
+    while (i < n && strcmp(tokens[i], "]") != 0)
+    {
+        if (*nb >= MAX_LISTE)
+            return -1;
+
+        strncpy(dest[*nb], tokens[i], TAILLE_MD5 - 1);
+        dest[*nb][TAILLE_MD5 - 1] = '\0';
+
+        (*nb)++;
+        i++;
+    }
+
+    if (i >= n)
+        return -1;
+
+    return i + 1;
+}
+
+// lire les fichiers seed de announce
+int lire_seed_announce(char **tokens, int i, int n, MessageP2P *msg)
+{
+    if (i >= n || strcmp(tokens[i], "[") != 0)
+        return -1;
+
+    i++;
+    
+    int initial_seed_count = msg->nb_seed; 
+
+    while (i < n && strcmp(tokens[i], "]") != 0)
+    {
+        if (i + 3 >= n) {
+            msg->nb_seed = initial_seed_count; 
+            return -1;
+        }
+
+        if (msg->nb_seed >= MAX_LISTE) {
+            msg->nb_seed = initial_seed_count; 
+            return -1;
+        }
+
+        if (!is_number(tokens[i + 1]) || !is_number(tokens[i + 2])) {
+            msg->nb_seed = initial_seed_count;
+            return -1;
+        }
+
+        strncpy(msg->liste_seed[msg->nb_seed].nom, tokens[i], sizeof(msg->liste_seed[msg->nb_seed].nom) - 1);
+        msg->liste_seed[msg->nb_seed].nom[sizeof(msg->liste_seed[msg->nb_seed].nom) - 1] = '\0';
+
+        msg->liste_seed[msg->nb_seed].taille = atol(tokens[i + 1]);
+        msg->liste_seed[msg->nb_seed].taille_piece = atoi(tokens[i + 2]);
+
+        strncpy(msg->liste_seed[msg->nb_seed].cle_md5, tokens[i + 3], TAILLE_MD5 - 1);
+        msg->liste_seed[msg->nb_seed].cle_md5[TAILLE_MD5 - 1] = '\0';
+
+        msg->nb_seed++;
+        i += 4;
+    }
+
+    if (i >= n) {
+        msg->nb_seed = initial_seed_count;
+        return -1;
+    }
+
+    return i + 1; 
+}
+
+// Parsing de "announce"
+MessageP2P *parse_announce(char **tokens, int n, MessageP2P *msg)
+{
     msg->port = DEFAULT_PORT;
     msg->nb_seed = 0;
     msg->nb_leech = 0;
 
-    for (int i = 1; i < num_tokens; i++) {
+    int i = 1;
 
-        // Gestion du port
-        if (strcmp(tokens[i], "listen") == 0) {
-            if (i + 1 < num_tokens) {
-                msg->port = atoi(tokens[i + 1]);
-                i++;
-            }
-        } 
-        // Mode
-        else if (strcmp(tokens[i], "seed") == 0) {
-            mode = 1;
-        } 
-        else if (strcmp(tokens[i], "leech") == 0) {
-            mode = 2;
-        } 
-        // Ignorer les crochets
-        else if (strcmp(tokens[i], "[") == 0 || strcmp(tokens[i], "]") == 0) {
-            continue; 
-        } 
-        // Nom de fichier ou hash
-        else {
-            if (mode == 1) { // seed
-                strncpy(msg->liste_seed[msg->nb_seed].nom, tokens[i],sizeof(msg->liste_seed[msg->nb_seed].nom) - 1);
-                msg->liste_seed[msg->nb_seed].nom[sizeof(msg->liste_seed[msg->nb_seed].nom) - 1] = '\0';
-                msg->nb_seed++;
-            } else if (mode == 2) { // leech
-                strncpy(msg->liste_leech_keys[msg->nb_leech], tokens[i],sizeof(msg->liste_leech_keys[msg->nb_leech]) - 1);
-                msg->liste_leech_keys[msg->nb_leech][sizeof(msg->liste_leech_keys[msg->nb_leech]) - 1] = '\0';
-                msg->nb_leech++;
-            }
+    while (i < n)
+    {
+        if (strcmp(tokens[i], "listen") == 0)
+        {
+            if (i + 1 >= n || !is_number(tokens[i + 1]))
+                return msg;
+
+            msg->port = atoi(tokens[i + 1]);
+            i += 2;
+        }
+        else if (strcmp(tokens[i], "seed") == 0)
+        {
+            int next = lire_seed_announce(tokens, i + 1, n, msg);
+            if (next == -1)
+                return msg;
+            i = next;
+        }
+        else if (strcmp(tokens[i], "leech") == 0)
+        {
+            int next = lire_liste_cles(tokens, i + 1, n,
+                                       msg->liste_leech_keys,
+                                       &msg->nb_leech);
+            if (next == -1)
+                return msg;
+            i = next;
+        }
+        else
+        {
+            i++;
         }
     }
+
     return msg;
 }
 
+
+// Parsing de "update"
+MessageP2P *parse_update(char **tokens, int n, MessageP2P *msg)
+{
+    msg->nb_seed = 0;
+    msg->nb_leech = 0;
+
+    int i = 1;
+
+    while (i < n)
+    {
+        if (strcmp(tokens[i], "seed") == 0)
+        {
+            int next = lire_liste_cles(tokens, i + 1, n,
+                                       msg->liste_seed_keys,
+                                       &msg->nb_seed);
+            if (next == -1)
+                return msg;
+            i = next;
+        }
+        else if (strcmp(tokens[i], "leech") == 0)
+        {
+            int next = lire_liste_cles(tokens, i + 1, n,
+                                       msg->liste_leech_keys,
+                                       &msg->nb_leech);
+            if (next == -1)
+                return msg;
+            i = next;
+        }
+        else
+        {
+            i++;
+        }
+    }
+
+    return msg;
+}
 
 // parsing de look
 MessageP2P *parse_look(char **tokens, int num_tokens, MessageP2P *msg) {
@@ -81,6 +191,8 @@ MessageP2P *add_message(char str[])
     MessageP2P *msg = malloc(sizeof(MessageP2P));
     memset(msg, 0, sizeof(MessageP2P));
 
+    str[strcspn(str, "\r\n")] = '\0'; // remplacer le caractère de fin\r\n par \0
+
     char *tokens[MAX_TOKENS];
     int num_tokens = 0;
 
@@ -93,70 +205,29 @@ MessageP2P *add_message(char str[])
         token = strtok(NULL, " ");
     }
 
-    if (num_tokens > 0)
-    {
-        strncpy(msg->commande, tokens[0], sizeof(msg->commande) - 1);
-        msg->commande[sizeof(msg->commande) - 1] = '\0';
+    if (num_tokens == 0) return msg;
 
-        // Parsing selon la commande
-        if (strcmp(msg->commande, "announce") == 0 || strcmp(msg->commande, "update") == 0) {
-            return parse_announce(tokens, num_tokens, msg);
-        }
-        // else if (strcmp(msg->commande, "look") == 0) {
-        //     return parse_look(tokens, num_tokens, msg);
-        // }
-        // else if (strcmp(msg->commande, "getfile") == 0 || strcmp(msg->commande, "interested") == 0 || strcmp(msg->commande, "have") == 0) {
-        //     return parse_simple_hash(tokens, num_tokens, msg);
-        // }
-        // else if (strcmp(msg->commande, "getpieces") == 0) {
-        //     return parse_getpieces(tokens, num_tokens, msg);
-        // }
-        // TODO : la commande "data" n'est pas gérée car le strtok() casserait le binaire 
-    }
+    strncpy(msg->commande, tokens[0], sizeof(msg->commande) - 1);
+    msg->commande[sizeof(msg->commande) - 1] = '\0';
+
+    // Parsing selon la commande
+    if (strcmp(msg->commande, "announce") == 0)
+        return parse_announce(tokens, num_tokens, msg);
+
+    if (strcmp(msg->commande, "update") == 0)
+        return parse_update(tokens, num_tokens, msg);
+
+    // else if (strcmp(msg->commande, "look") == 0) {
+    //     return parse_look(tokens, num_tokens, msg);
+    // }
+    // else if (strcmp(msg->commande, "getfile") == 0 || strcmp(msg->commande, "interested") == 0 || strcmp(msg->commande, "have") == 0) {
+    //     return parse_simple_hash(tokens, num_tokens, msg);
+    // }
+    // else if (strcmp(msg->commande, "getpieces") == 0) {
+    //     return parse_getpieces(tokens, num_tokens, msg);
+    // }
+    // TODO : la commande "data" n'est pas gérée car le strtok() casserait le binaire 
     
     return msg;
-}
 
-
-
-MessageP2P *parse_update(char **tokens, int num_tokens, MessageP2P *msg){
-    int mode = 0; 
-
-    msg->nb_seed = 0;
-    msg->nb_leech = 0;
-
-    for (int i = 1; i < num_tokens; i++)
-    {
-        if (strcmp(tokens[i], "seed") == 0)
-        {
-            mode = 1;
-        }
-        else if (strcmp(tokens[i], "leech") == 0)
-        {
-            mode = 2;
-        }
-        else if (strcmp(tokens[i], "[") == 0 || strcmp(tokens[i], "]") == 0)
-        {
-            continue;
-        }
-        else
-        {
-            if (mode == 1)
-            {
-                strncpy(msg->liste_seed_keys[msg->nb_seed], tokens[i],
-                        sizeof(msg->liste_seed_keys[msg->nb_seed]) - 1);
-                msg->liste_seed_keys[msg->nb_seed][sizeof(msg->liste_seed_keys[msg->nb_seed]) - 1] = '\0';
-                msg->nb_seed++;
-            }
-            else if (mode == 2)
-            {
-                strncpy(msg->liste_leech_keys[msg->nb_leech], tokens[i],
-                        sizeof(msg->liste_leech_keys[msg->nb_leech]) - 1);
-                msg->liste_leech_keys[msg->nb_leech][sizeof(msg->liste_leech_keys[msg->nb_leech]) - 1] = '\0';
-                msg->nb_leech++;
-            }
-        }
-    }
-
-    return msg;
 }
