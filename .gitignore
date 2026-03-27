@@ -22,3 +22,4 @@ data/*
 # Fichiers systèmes
 .DS_Store
 Thumbs.db
+bin/*
