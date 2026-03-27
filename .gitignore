@@ -22,13 +22,4 @@ data/*
 # Fichiers systèmes
 .DS_Store
 Thumbs.db
-src/tracker/FileMetadata.class
-src/tracker/Test.class
-src/tracker/prueba.txt
-src/tracker/Piece.class
-src/tracker/MockTest.class
-src/tracker/MockReseau.class
-src/tracker/ManifestManager.class
-src/tracker/IReseau.class
-src/tracker/HashUtils.class
-src/tracker/FileChunker.class
+bin/*

@@ -57,10 +57,32 @@ public class Announce
         announce.append("] leech []");
         return announce.toString();
 
+    }
+
+
+    
+    public String getfile(String key){
+        StringBuilder getfile = new StringBuilder();
+        getfile.append("getfile");
+        getfile.append(" ");
+        getfile.append(key);
+        getfile.append("\n");
+        return getfile.toString();
+
 
     }
 
-    
+    public String interested(String key){
+        StringBuilder getfile = new StringBuilder();
+        getfile.append("interested");
+        getfile.append(" ");
+        getfile.append(key);
+        getfile.append("\n");
+        return getfile.toString();
+
+
+    }
+
   
     public String computeMD5(File fichier) {
 
