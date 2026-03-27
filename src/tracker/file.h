@@ -30,6 +30,6 @@ int get_piece_size(const char *cle_md5);
 
 void add_peer_to_file(const char *cle_md5, Peer *peer);
 
-int get_peers_for_file(const char *cle_md5, Peer[MAX_PEERS]);
+int get_peers_for_file(const char *cle_md5, Peer *peers[]);
 
 #endif /* __FILE_H__ */
