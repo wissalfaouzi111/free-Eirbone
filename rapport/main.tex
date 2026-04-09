@@ -1,21 +1,113 @@
-\documentclass[a4paper,12pt]{article}
+\documentclass[11pt, a4paper]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[french]{babel}
-\usepackage{geometry}
 \usepackage{graphicx}
-\usepackage{hyperref}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{wrapfig}
 
-\geometry{margin=2.5cm}
+\geometry{
+  a4paper,
+  top=1.cm,
+  bottom=1.5cm,
+  left=1.cm,
+  right=1.cm,
+  includehead,
+  headheight=15pt,
+  headsep=12pt
+}
 
-\title{Rapport Intermédiaire \\ Projet Eirbone \\ Application P2P de partage de fichiers}
-\author{El Morabet Nour \\ Rachid Dina \\ Colin Melissa \\ Faouzi Wissal \\ Delgado Romero David}
-\date{\today}
 
+% Style pour le code C
+\lstdefinestyle{cstyle}{
+  language=C,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  stringstyle=\color{red!70!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  numbersep=8pt,
+  backgroundcolor=\color{gray!8},
+  frame=single,
+  rulecolor=\color{gray!40},
+  breaklines=true,
+  captionpos=b,
+  tabsize=4,
+  showspaces=false,
+  showstringspaces=false
+}
+\lstset{style=cstyle}
+
+% En-tête et pied de page
+% \pagestyle{fancy}
+% \fancyhf{}
+% \rhead{\small \textit{Projet Système -- Threads en espace utilisateur}}
+% \lhead{\small \textbf{\leftmark}}
+% \rfoot{\small Page \thepage}
+% \lfoot{\small Rapport intermédiaire}
+% \renewcommand{\headrulewidth}{0.5pt}
+% \renewcommand{\footrulewidth}{0.5pt}
+
+\newcommand{\sectionbreak}{}
+\titleformat{\section}[block]
+  {\vspace{1ex}\normalfont\Large\bfseries\centering}{\thesection}{1em}{}[{\vspace{0.5em}\titlerule[0.8pt]\vspace{1.5ex}}]
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{black!80}}{\thesubsection}{1em}{}
+
+% Titre des sections un peu plus compact
+\titlespacing*{\section}{0pt}{1.4ex plus .2ex}{0.8ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{1.0ex plus .2ex}{0.6ex plus .2ex}
+
+% ============================================================
 \begin{document}
 
-\maketitle
+% ── Page de titre ────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+
+  {\Large \textsc{}}\\[0.4cm]
+  % {\large Systèmes d'exploitation}\\[2cm]
+
+  \rule{\linewidth}{0.5pt}\\[0.4cm]
+  {\huge \bfseries Projet Eirbone }\\[0.3cm]
+  {\LARGE Application P2P de partage de fichiers}\\[0.2cm]
+  \rule{\linewidth}{0.5pt}\\[1.5cm]
+
+  {\large \textbf{Rapport intermédiaire}}\\[0.5cm]
+  {\normalsize Rendu du \today}\\[2cm]
+
+  \begin{tabular}{ll}
+    \textbf{Membres :} & El Morabet Nour \\
+                       & Rachid Dina \\
+                       & Colin Melissa \\
+                       & Faouzi Wissal\\
+                       & Delgado Romero David\\
+
+
+  \end{tabular}
+
+  \vfill
+  {\small }
+\end{titlepage}
+
+% ── Table des matières ───────────────────────────────────────
+\tableofcontents
+\newpage
+
 
 \section{Introduction}
 Le projet Eirbone consiste à développer une application de partage de fichiers en mode pair-à-pair (P2P). 
@@ -24,6 +116,21 @@ Dans ce modèle, chaque machine joue à la fois le rôle de client et de serveur
 L'objectif est de permettre le transfert de fichiers volumineux en fragmentant ces fichiers en plusieurs pièces, 
 tout en assurant une communication efficace entre les différents pairs.
 
+\section{Organisation du travail}
+
+Le projet a été réalisé en groupe avec une répartition claire des responsabilités afin d'assurer une progression efficace.
+
+Nous avons divisé le travail en trois grandes parties :
+
+\begin{itemize}
+    \item \textbf{Équipe Tracker} : chargée de l’implémentation du serveur central, incluant la gestion des connexions, des fichiers disponibles et des réponses aux requêtes des peers.
+
+    \item \textbf{Équipe Peer} : responsable de l’implémentation du client P2P, comprenant la communication avec le tracker, la gestion des connexions entre pairs, ainsi que le traitement des messages du protocole.
+
+    \item \textbf{Gestion des données} : une personne s’est concentrée sur la gestion des fichiers, notamment le découpage en pièces (chunking), la manipulation des données binaires, et la reconstruction des fichiers.
+\end{itemize}
+
+Cette organisation nous a permis de travailler en parallèle tout en respectant une architecture cohérente basée sur le protocole défini dans l’énoncé.
 \section{Architecture du système}
 
 L'architecture repose sur deux composants principaux :

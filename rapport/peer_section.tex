@@ -1,101 +1,113 @@
 \subsection{Implémentation du Peer}
+Le peer constitue la partie principale de l’application côté utilisateur. Dans notre projet, il joue un double rôle : il communique avec le tracker pour rechercher des fichiers et obtenir la liste des pairs disponibles, mais il peut aussi répondre directement à d’autres pairs pour partager les morceaux qu’il possède.
 
-Le peer est un élément central du système P2P. Il agit à la fois comme client et serveur.
 
 \subsubsection{Serveur Peer}
-
 Le serveur peer permet d’accepter des connexions entrantes d’autres pairs.
 
 Il est implémenté avec une \textbf{ServerSocket} en Java. 
 Chaque nouvelle connexion est gérée dans un thread séparé.
-
 \textbf{Principe :}
 \begin{itemize}
     \item Le serveur écoute sur un port donné
     \item Lorsqu’un pair se connecte, un \texttt{PeerHandler} est créé
     \item Chaque handler traite les requêtes indépendamment
 \end{itemize}
-
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.7\linewidth]{peerserver.png}
     \caption{Architecture du PeerServer}
     \label{fig:peerserver}
 \end{figure}
-
 Cela permet de gérer plusieurs connexions simultanément.
 
-\subsubsection{Gestion des commandes Peer-Peer}
 
-Le \texttt{PeerHandler} gère plusieurs types de messages :
 
-\paragraph{1. interested}
-Lorsqu’un pair est intéressé par un fichier, il envoie :
+\subsubsection{Construction et envoi des requêtes}
+Une partie du travail a consisté à construire les différents messages envoyés dans le protocole, aussi bien vers le tracker que vers les autres pairs. Pour cela, nous avons regroupé cette logique dans une classe dédiée.
 
-\begin{verbatim}
-interested <key>
-\end{verbatim}
-
-Le serveur répond avec un \textbf{buffermap} encodé en Base64.
-
-\paragraph{2. have}
-Cette commande permet d’échanger les buffermaps entre pairs.
-
-Cela permet de savoir quelles pièces sont disponibles chez chaque voisin.
-
-\paragraph{3. getpieces}
-Le peer demande certaines pièces d’un fichier :
-
-\begin{verbatim}
-getpieces <key> [index1 index2 ...]
-\end{verbatim}
-
-Le serveur :
+Côté tracker, les principales requêtes construites sont les suivantes :
 \begin{itemize}
-    \item vérifie qu’il possède les pièces
-    \item lit les données dans le fichier
-    \item envoie un header + payload binaire
+    \item \texttt{announce}, qui permet de déclarer les fichiers disponibles localement ;
+    \item \texttt{look}, qui sert à rechercher un fichier selon un ou plusieurs critères ;
+    \item \texttt{getfile}, qui permet d’obtenir la liste des pairs associés à un fichier.
 \end{itemize}
+
+Côté peer-to-peer, nous construisons également :
+\begin{itemize}
+    \item \texttt{interested}, pour signaler qu’un pair souhaite obtenir des informations sur un fichier ;
+    \item \texttt{getpieces}, pour demander explicitement certains morceaux.
+\end{itemize}
+La commande \texttt{announce} contient, pour chaque fichier partagé, son nom, sa taille, la taille d’une pièce et sa clé MD5. Ce hash est calculé en lisant le fichier bloc par bloc, puis utilisé comme identifiant unique dans le protocole.
+
+
+\subsubsection{Traitement des messages reçus}
+
+La réception et le traitement des messages entre pairs sont assurés par la classe \texttt{PeerHandler}. 
+Son rôle est de recevoir les messages entrants, d’interpréter leur contenu, 
+de mettre à jour certaines informations locales si nécessaire, puis de renvoyer 
+une réponse adaptée selon le protocole.
+
+À ce stade du projet, trois commandes principales sont prises en charge :
+
+\begin{itemize}
+    \item \textbf{\texttt{interested <key>}} : ce message est envoyé lorsqu’un pair souhaite obtenir des informations sur un fichier. Le peer contacté recherche alors le fichier correspondant et répond avec un message \texttt{have} contenant son buffermap encodé en Base64.
+
+    \item \textbf{\texttt{have <key> <buffermap>}} : cette commande permet d’échanger les buffermaps entre pairs. Elle sert à savoir quels morceaux sont disponibles chez chaque voisin, ce qui est indispensable avant de demander des pièces.
+
+    \item \textbf{\texttt{getpieces <key> [index1 index2 ...]}} : cette commande permet de demander explicitement certains morceaux d’un fichier. Le peer vérifie qu’il possède bien les pièces demandées, prépare l’en-tête \texttt{data}, puis envoie les données binaires correspondantes.
+\end{itemize}
+
+Cette organisation nous a permis de séparer clairement la réception des requêtes, 
+la mise à jour de l’état local et la construction des réponses réseau.
 
 \subsubsection{Gestion du buffermap}
 
-Le buffermap est représenté par un \textbf{BitSet} en Java.
-
+Pour représenter les morceaux déjà disponibles pour un fichier, nous avons utilisé un \textbf{BitSet} en Java. Chaque bit correspond à une pièce :
 \begin{itemize}
-    \item 1 = pièce disponible
-    \item 0 = pièce absente
+    \item la valeur 1 signifie que la pièce est disponible ;
+    \item la valeur 0 signifie qu’elle ne l’est pas encore.
 \end{itemize}
 
-Il est ensuite encodé en Base64 pour être transmis.
+Ce choix simplifie la manipulation des pièces et permet de savoir rapidement si un téléchargement est complet ou non. Avant l’envoi sur le réseau, ce buffermap est encodé en Base64 afin de respecter le format texte du protocole.
 
-\subsubsection{Client Peer}
+\subsubsection{Communication avec le tracker}
 
-Le client permet de communiquer avec le tracker :
+En plus de son rôle de serveur, le peer agit aussi comme client lorsqu’il communique avec le tracker. Nous avons donc mis en place une classe dédiée à cette connexion TCP.
 
+Cette partie permet :
 \begin{itemize}
-    \item connexion TCP
-    \item envoi de commandes (announce, look, getfile)
-    \item réception des réponses
+    \item d’ouvrir une connexion vers le tracker ;
+    \item d’envoyer les commandes du protocole, en particulier \texttt{announce}, \texttt{look} et \texttt{getfile} ;
+    \item de recevoir les réponses textuelles renvoyées par le tracker.
 \end{itemize}
 
-\subsubsection{Commande announce}
+Cette étape est nécessaire pour découvrir les fichiers disponibles dans le réseau, puis récupérer la liste des pairs pouvant participer au téléchargement.
 
-La commande announce permet d’envoyer la liste des fichiers au tracker.
 
-Elle contient :
+
+
+\subsubsection{Parsing des réponses du tracker}
+
+Les réponses du tracker sont reçues sous forme de texte brut. Afin de pouvoir les exploiter dans le programme, nous avons mis en place une étape de parsing.
+
+Deux types de réponses sont traités :
 \begin{itemize}
-    \item nom du fichier
-    \item taille
-    \item taille des pièces
-    \item hash MD5
+    \item la réponse \texttt{list}, qui est convertie en une liste d’objets \texttt{FileInfo} ;
+    \item la réponse \texttt{peers}, qui permet de récupérer la clé du fichier ainsi que la liste des pairs disponibles.
 \end{itemize}
 
-Le hash MD5 est calculé en lisant le fichier bloc par bloc.
+Ce parsing permet de transformer les messages réseau en structures manipulables dans le code et constitue un élément essentiel pour la suite du téléchargement.
+\subsubsection{Structures de données du peer}
 
-\subsubsection{Points importants}
+Pour organiser les informations manipulées pendant l’exécution, nous avons introduit plusieurs structures simples.
 
 \begin{itemize}
-    \item utilisation de TCP en mode flux
-    \item séparation header / données binaires
-    \item gestion des threads pour la concurrence
+    \item \texttt{FileInfo} représente un fichier connu du système, avec son nom, sa taille, la taille d’une pièce et sa clé ;
+    \item \texttt{PeerInfo} représente un pair distant à l’aide de son adresse IP et de son port ;
+    \item \texttt{DownloadState} représente l’état local d’un téléchargement, en particulier le fichier en cours de reconstruction et le buffermap local ;
+    \item \texttt{PeerState} centralise l’état global du peer en associant les téléchargements et les pairs disponibles pour chaque fichier.
 \end{itemize}
+
+
+
