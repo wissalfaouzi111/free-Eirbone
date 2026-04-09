@@ -9,16 +9,16 @@ class FileInfo
 
 
     public void setFilename(String name){
-        Filename = name;
+        this.Filename = name;
     }
     public void setLength(int length){
-        length = length;
+        this.length = length;
     }
     public void setPieceSize(int PieceSize){
-        Piece_size = PieceSize;
+        this.Piece_size = PieceSize;
     }
     public void setKey(String key){
-        Key = key;
+        this.Key = key;
     }
     
 }
