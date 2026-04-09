@@ -1,0 +1,32 @@
+% File Management Section - Eirbone Project
+
+\section{Gestion des fichiers côté pair}
+
+\subsection{Introduction}
+
+Dans un système pair-à-pair (P2P) de type BitTorrent, chaque pair doit charger un fichier, le découper en morceaux et les partager avec d'autres pairs. Cette section décrit l'implémentation Java des composants fondamentaux de gestion des fichiers : le découpage en chunks de taille fixe, le calcul de hachages pour l'identification et l'intégrité, et le maintien de métadonnées.
+
+\subsection{Découpage des fichiers (\texttt{FileChunker})}
+
+La classe \texttt{FileChunker} lit un fichier par fragments de 1024 octets. Chaque fragment est complété avec des octets nuls si sa taille est inférieure à 1024 (padding). Tous les morceaux ont ainsi une taille uniforme et reçoivent un indice unique commençant à 0, simplifiant la communication réseau entre pairs.
+
+\subsection{Représentation des morceaux (\texttt{Piece})}
+
+La classe \texttt{Piece} encapsule trois attributs : l'indice (\texttt{index}) identifiant le morceau au sein du fichier, les données (\texttt{data}) sous forme d'un tableau de 1024 octets, et son hachage MD5 (\texttt{md5}). L'indice permet de référencer un morceau sans envoyer ses données, tandis que le hachage MD5 vérifie l'intégrité lors de la transmission.
+
+\subsection{Hachage cryptographique (\texttt{HashUtils})}
+
+La classe \texttt{HashUtils} calcule les hachages MD5 d'un tableau d'octets ou d'un fichier entier. Le MD5 du fichier complet sert de clé d'identification universelle auprès du tracker, tandis que le MD5 de chaque morceau permet de vérifier son intégrité lors de la réception.
+
+\subsection{Métadonnées du fichier (\texttt{FileMetadata})}
+
+\texttt{FileMetadata} stocke cinq informations : le nom, la taille totale, la taille des morceaux (1024), le nombre de morceaux et la clé MD5 du fichier. Ces métadonnées sont essentielles pour communiquer avec le tracker et vérifier qu'un autre pair possède bien le même fichier.
+
+\subsection{Abstraction réseau (\texttt{IReseau} et \texttt{MockReseau})}
+
+L'interface \texttt{IReseau} expose une méthode \texttt{envoyerMessage(String msg)} découplant la gestion des fichiers de l'implémentation réseau. \texttt{MockReseau} implémente cette interface en affichant les messages sur la sortie standard, permettant des tests sans infrastructure réseau réelle.
+
+\subsection{Classe de test et intégration (\texttt{MockTest})}
+
+\texttt{MockTest} charge un fichier (passé en argument ou par défaut \texttt{test.dat}), le découpe via \texttt{FileChunker}, affiche les métadonnées et les hachages des morceaux, puis envoie un message d'annonce simulé via \texttt{MockReseau}. Ce message valide que les informations sont correctement formatées selon le standard du tracker.
+</invoke>
