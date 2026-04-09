@@ -28,7 +28,6 @@
   headsep=12pt
 }
 
-
 % Style pour le code C
 \lstdefinestyle{cstyle}{
   language=C,
@@ -51,36 +50,22 @@
 }
 \lstset{style=cstyle}
 
-% En-tête et pied de page
-% \pagestyle{fancy}
-% \fancyhf{}
-% \rhead{\small \textit{Projet Système -- Threads en espace utilisateur}}
-% \lhead{\small \textbf{\leftmark}}
-% \rfoot{\small Page \thepage}
-% \lfoot{\small Rapport intermédiaire}
-% \renewcommand{\headrulewidth}{0.5pt}
-% \renewcommand{\footrulewidth}{0.5pt}
-
 \newcommand{\sectionbreak}{}
 \titleformat{\section}[block]
   {\vspace{1ex}\normalfont\Large\bfseries\centering}{\thesection}{1em}{}[{\vspace{0.5em}\titlerule[0.8pt]\vspace{1.5ex}}]
 \titleformat{\subsection}
   {\normalfont\large\bfseries\color{black!80}}{\thesubsection}{1em}{}
 
-% Titre des sections un peu plus compact
 \titlespacing*{\section}{0pt}{1.4ex plus .2ex}{0.8ex plus .2ex}
 \titlespacing*{\subsection}{0pt}{1.0ex plus .2ex}{0.6ex plus .2ex}
 
-% ============================================================
 \begin{document}
 
-% ── Page de titre ────────────────────────────────────────────
 \begin{titlepage}
   \centering
   \vspace*{2cm}
 
   {\Large \textsc{}}\\[0.4cm]
-  % {\large Systèmes d'exploitation}\\[2cm]
 
   \rule{\linewidth}{0.5pt}\\[0.4cm]
   {\huge \bfseries Projet Eirbone }\\[0.3cm]
@@ -96,129 +81,136 @@
                        & Colin Melissa \\
                        & Faouzi Wissal\\
                        & Delgado Romero David\\
-
-
   \end{tabular}
 
   \vfill
-  {\small }
 \end{titlepage}
 
-% ── Table des matières ───────────────────────────────────────
 \tableofcontents
 \newpage
 
-
 \section{Introduction}
 Le projet Eirbone consiste à développer une application de partage de fichiers en mode pair-à-pair (P2P). 
-Dans ce modèle, chaque machine joue à la fois le rôle de client et de serveur.
+Dans ce modèle, chaque machine joue à la fois le rôle de client et de serveur. L'objectif est de permettre le transfert de fichiers volumineux en fragmentant ces fichiers en plusieurs pièces, tout en assurant une communication efficace entre les différents pairs.
 
-L'objectif est de permettre le transfert de fichiers volumineux en fragmentant ces fichiers en plusieurs pièces, 
-tout en assurant une communication efficace entre les différents pairs.
-
-\section{Organisation du travail}
-
-Le projet a été réalisé en groupe avec une répartition claire des responsabilités afin d'assurer une progression efficace.
-
-Nous avons divisé le travail en trois grandes parties :
-
+\section{Organisation du travail et Gestion de Projet}
+Le projet a été réalisé en groupe avec une répartition des responsabilités en trois pôles :
 \begin{itemize}
-    \item \textbf{Équipe Tracker} : chargée de l’implémentation du serveur central, incluant la gestion des connexions, des fichiers disponibles et des réponses aux requêtes des peers.
-
-    \item \textbf{Équipe Peer} : responsable de l’implémentation du client P2P, comprenant la communication avec le tracker, la gestion des connexions entre pairs, ainsi que le traitement des messages du protocole.
-
-    \item \textbf{Gestion des données} : une personne s’est concentrée sur la gestion des fichiers, notamment le découpage en pièces (chunking), la manipulation des données binaires, et la reconstruction des fichiers.
+    \item \textbf{Équipe Tracker (C)} : architecture serveur, parsing des requêtes, gestion de l'annuaire des fichiers et des pairs.
+    \item \textbf{Équipe Peer (Java)} : sockets clients/serveurs, communication P2P, protocole de requêtage.
+    \item \textbf{Gestion des données (Java)} : découpage des fichiers, hachage MD5, BufferMap, reconstruction.
 \end{itemize}
 
-Cette organisation nous a permis de travailler en parallèle tout en respectant une architecture cohérente basée sur le protocole défini dans l’énoncé.
-\section{Architecture du système}
+\textbf{Méthodologie :}
+L'organisation initiale prévoyait un découpage temporel strict basé sur des "Sprints" (méthode Agile). Cependant, la charge de travail irrégulière de l'équipe a rendu la clôture temporelle des sprints irréalisable. La méthode a été réadaptée vers un flux continu (Kanban) englobant un seul sprint global jusqu'à la fin du projet. 
 
+Comme l'illustre la Figure \ref{fig:jira}, l'outil Jira a été utilisé pour consigner le backlog. Les tâches ont été modélisées sous forme de tickets associés à des Épiques, classées par ordre de priorité et évaluées en Story Points pour estimer l'effort de développement (complexité et risque).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{jira.png}
+    \caption{Tableau de bord Jira}
+    \label{fig:jira}
+\end{figure}
+\section{Architecture du système}
 L'architecture repose sur deux composants principaux :
 
 \subsection{Tracker}
-Le tracker est une entité centrale permettant :
+Le tracker est une entité centrale développée en C. Il permet :
 \begin{itemize}
-    \item d’enregistrer les pairs présents dans le réseau
-    \item de référencer les fichiers disponibles
-    \item de fournir la liste des pairs possédant un fichier
+    \item L'enregistrement des pairs actifs et de leurs ports d'écoute.
+    \item Le référencement associant un hash MD5 aux informations du fichier (nom, taille) et aux pairs qui le possèdent.
+    \item La recherche de fichiers selon un critère donné (nom).
 \end{itemize}
 
 \subsection{Peers}
-Les peers sont les clients du système. Ils peuvent :
+Les peers sont les clients développés en Java. Ils peuvent :
 \begin{itemize}
-    \item partager des fichiers (seeders)
-    \item télécharger des fichiers (leechers)
-    \item communiquer entre eux directement
+    \item Partager des fichiers (seeders).
+    \item Télécharger des fichiers (leechers).
+    \item Communiquer directement entre eux en TCP.
 \end{itemize}
 
 \section{Protocole de communication}
-
 \subsection{Communication Peer-Tracker}
-
-Les principales commandes implémentées sont :
-
+Les requêtes texte implémentées sur le tracker suivent un formatage strict (champs séparés par des espaces, listes entre crochets) :
 \begin{itemize}
-    \item \textbf{announce} : annonce des fichiers disponibles
-    \item \textbf{look} : recherche de fichiers
-    \item \textbf{getfile} : récupération des peers
+    \item \textbf{announce} : enregistrement d'un pair et de ses fichiers complets ou en cours de téléchargement.
+    \item \textbf{look} : recherche de fichiers par nom.
 \end{itemize}
-
-Les messages sont envoyés en texte et séparés par des espaces.
 
 \subsection{Communication Peer-Peer}
-
 Les peers échangent :
-
 \begin{itemize}
-    \item \textbf{interested} : signaler l’intérêt pour un fichier
-    \item \textbf{have} : envoyer le buffermap
-    \item \textbf{getpieces} : demander des morceaux
-    \item \textbf{data} : envoyer les données binaires
+    \item \textbf{interested} : signaler l’intérêt pour un fichier.
+    \item \textbf{have} : envoyer le buffermap encodé.
+    \item \textbf{getpieces} : demander des morceaux d'un fichier.
+    \item \textbf{data} : envoyer les données binaires brutes précédées d'un en-tête texte.
 \end{itemize}
 
-\section{Implémentation du Peer}
+\section{Implémentation du Tracker (C)}
+Le serveur Tracker a été construit avec un focus sur la stabilité et le respect strict du protocole.
 
+\subsection{Réseau et Sécurité}
+Le serveur repose sur des Sockets TCP (\texttt{AF\_INET}, \texttt{SOCK\_STREAM}).
+\begin{itemize}
+    \item \textbf{Keep-Alive :} La communication client-serveur maintient la connexion TCP ouverte via une boucle \texttt{while} interne permettant de traiter plusieurs requêtes d'un même pair sans overhead de reconnexion.
+    \item \textbf{Tolérance aux pannes :} Le serveur ferme de force la connexion d'un client au bout de 3 messages consécutifs mal formatés.
+    \item \textbf{Gestion des ports :} L'option \texttt{SO\_REUSEADDR} a été configurée pour court-circuiter le délai \texttt{TIME\_WAIT} du système, et un gestionnaire de signaux (\texttt{SIGINT}) a été mis en place pour libérer la socket proprement en cas d'interruption.
+\end{itemize}
+
+\subsection{Parsing et Programmation Défensive}
+La lecture des commandes utilise `strtok` pour isoler les chaînes. Le parseur est conçu de manière défensive :
+\begin{itemize}
+    \item Vérification de la conversion de chaînes en entiers (\texttt{is\_number}).
+    \item Détection des erreurs de formatage (crochets manquants, listes incomplètes).
+    \item \textbf{Rollback :} En cas de détection d'une anomalie au milieu de l'analyse d'une liste de fichiers, le compteur d'éléments est réinitialisé à son état d'origine pour éviter la corruption de la structure de données \texttt{MessageP2P}.
+\end{itemize}
+
+\subsection{Tests automatisés}
+Une méthodologie de validation par tests a été intégrée via le `Makefile` :
+\begin{itemize}
+    \item \textbf{Tests unitaires :} Validation locale du module de parsing, du registre des fichiers et de la base des pairs via `assert.h`. Ils injectent des trames réseau invalides pour s'assurer que le serveur n'entre pas en erreur fatale (Segmentation Fault).
+    \item \textbf{Tests d'intégration :} Le Makefile lance le binaire du tracker en arrière-plan, compile et exécute un client fictif en C qui lui soumet un scénario complet, analyse la réponse du serveur (`> ok` ou `list [...]`), puis termine le processus serveur.
+\end{itemize}
+
+\section{Implémentation du Peer (Java)}
 \input{peer_section.tex}
 \input{file_management_section.tex}
 
 \section{Choix techniques}
-
 \begin{itemize}
-    \item Java pour le peer
-    \item TCP pour la communication
-    \item MD5 pour l’identification des fichiers
-    \item Threads pour gérer plusieurs connexions
+    \item \textbf{Langages :} C pour le Tracker (performances, bas niveau) et Java pour le Peer (programmation orientée objet, portabilité).
+    \item \textbf{Protocole Transport :} TCP pour garantir l'ordre et l'intégrité des données échangées.
+    \item \textbf{Identification :} Hachage cryptographique MD5 pour associer une empreinte unique à chaque fichier.
+    \item \textbf{Build System :} `Makefile` pour l'automatisation de la compilation croisée (C/Java) et l'exécution de la chaîne de tests.
 \end{itemize}
 
-\section{Travail réalisé}
-
+\section{Travail réalisé à ce stade}
 \begin{itemize}
-    \item Implémentation du serveur peer
-    \item Gestion des commandes réseau
-    \item Encodage du buffermap en Base64
-    \item Communication avec le tracker
+    \item Architecture de la gestion de projet (Jira, Story Points).
+    \item Implémentation du serveur Tracker (TCP, Keep-Alive).
+    \item Parsing sécurisé des commandes `announce` et `look`.
+    \item Moteur de tests unitaires et d'intégration fonctionnel.
+    \item (Peer) Implémentation du serveur peer et gestion des commandes réseau.
+    \item (Peer) Découpage des fichiers et encodage du buffermap en Base64.
 \end{itemize}
 
 \section{Difficultés rencontrées}
-
 \begin{itemize}
-    \item 
-    \item 
-    \item 
-\end{itemize}
+    \item -
+    \item -
+    \item -
 
 \section{Travail restant}
-
 \begin{itemize}
-    \item Optimisation du téléchargement
-    \item Interface utilisateur
-    \item Tests complets en réseau
+    \item Implémentation du multiplexage I/O (`select`) sur le Tracker pour remplacer le traitement séquentiel actuel des clients.
+    \item Optimisation du téléchargement P2P (logique Leecher/Seeder avancée).
+    \item Intégration du serveur HTTP embarqué pour l'interface graphique.
+    \item Tests finaux de déploiement multisites sur l'infrastructure réseau de l'école (gestion des pare-feux).
 \end{itemize}
 
 \section{Conclusion}
-
-Ce projet nous a permis de comprendre les principes fondamentaux des systèmes distribués 
-et du protocole P2P. La suite du projet consistera à améliorer les performances 
-et finaliser l’ensemble des fonctionnalités.
+La première moitié du projet a permis de concevoir des fondations solides, notamment un protocole applicatif robuste et une gestion mémoire fiabilisée côté serveur. La suite du projet nécessitera de migrer le Tracker vers une architecture réseau non-bloquante et de valider les échanges de données binaires P2P à grande échelle.
 
 \end{document}
