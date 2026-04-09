@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.security.MessageDigest;
+import java.util.*;
 
 
 public class Announce 
@@ -22,6 +23,7 @@ public class Announce
              sb.deleteCharAt(sb.length() - 1);
         }
         sb.append("]");
+        sb.append("\n");
         return sb.toString();
     }
 
@@ -55,6 +57,7 @@ public class Announce
         }
         
         announce.append("] leech []");
+        announce.append("\n");
         return announce.toString();
 
     }
@@ -73,13 +76,31 @@ public class Announce
     }
 
     public String interested(String key){
-        StringBuilder getfile = new StringBuilder();
-        getfile.append("interested");
-        getfile.append(" ");
-        getfile.append(key);
-        getfile.append("\n");
-        return getfile.toString();
+        StringBuilder interested = new StringBuilder();
+        interested.append("interested");
+        interested.append(" ");
+        interested.append(key);
+        interested.append("\n");
+        return interested.toString();
 
+
+    }
+
+
+    public String getpieces(String key, List<Integer> indices){
+        StringBuilder sb = new StringBuilder();
+        sb.append("getpieces ");
+        sb.append(key);
+        sb.append(" [");
+        for (int i=0; i<indices.size(); i++){
+            if(i>0){
+                sb.append(" ");
+            }
+            sb.append(indices.get(i))
+            
+        }
+        sb.append("]\n");
+        return sb.toString();
 
     }
 

@@ -55,7 +55,7 @@ public class PeerHandler implements Runnable {
         if (tokens.length < 3) return;
         String key = tokens[1];
 
-        DonwnloadState dl = state.downloads.get(key);
+        DownloadState dl = state.downloads.get(key);
         if (dl == null) {
             return;
         }  
