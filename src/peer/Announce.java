@@ -96,7 +96,7 @@ public class Announce
             if(i>0){
                 sb.append(" ");
             }
-            sb.append(indices.get(i))
+            sb.append(indices.get(i));
             
         }
         sb.append("]\n");

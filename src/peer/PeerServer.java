@@ -14,7 +14,7 @@ public Class PeerServer{
         
         while (true) {
             Socket client = serverSocket.accept();
-            #on cree un handler pour le nouveau pair
+            //on cree un handler pour le nouveau pair
             new Thread(new PeerHandler(client, state)).start();
         }
     }
