@@ -68,6 +68,7 @@ FichierInfo *creer_fichier_info(const char *nom, long taille, int taille_piece, 
     info->taille_piece = taille_piece;
     strncpy(info->cle_md5, cle_md5, sizeof(info->cle_md5) - 1);
     info->cle_md5[sizeof(info->cle_md5) - 1] = '\0';
+    info->peers = NULL; 
 
     HashNode *node = malloc(sizeof(HashNode));
     if (node == NULL) {
@@ -88,6 +89,14 @@ void liberer_fichier_info(FichierInfo *fichier) {
     if (fichier == NULL) {
         return;
     }
+
+    FilePeerNode *curr_peer = fichier->peers;
+    while (curr_peer != NULL) {
+        FilePeerNode *next_peer = curr_peer->next;
+        free(curr_peer);
+        curr_peer = next_peer;
+    }
+    fichier->peers = NULL;
 
     unsigned long bucket = hash_md5_key(fichier->cle_md5);
     HashNode *curr = fichier_index[bucket];
@@ -134,4 +143,81 @@ long get_size(const char *cle_md5) {
 int get_piece_size(const char *cle_md5) {
     FichierInfo *fichier = trouver_fichier_par_cle(cle_md5);
     return (fichier != NULL) ? fichier->taille_piece : -1;
+}
+
+void add_peer_to_file(const char *cle_md5, Peer *peer) {
+    if (cle_md5 == NULL || peer == NULL) {
+        return;
+    }
+
+    FichierInfo *fichier = trouver_fichier_par_cle(cle_md5);
+    if (fichier == NULL) {
+        return;
+    }
+
+    // Vérifier que le peer n'est pas déjà dans la liste
+    FilePeerNode *current = fichier->peers;
+    while (current != NULL) {
+        if (current->peer == peer) {
+            return;  
+        }
+        current = current->next;
+    }
+
+    // Créer un nouveau nœud pour la liste chaînée
+    FilePeerNode *new_node = malloc(sizeof(FilePeerNode));
+    if (new_node == NULL) {
+        return;
+    }
+
+    new_node->peer = peer;
+    new_node->next = fichier->peers;
+    fichier->peers = new_node;  // Ajouter au début de la liste
+}
+
+
+int get_peers_for_file(const char *cle_md5, Peer *peers[]) {
+    if (cle_md5 == NULL) {
+        return 0;
+    }
+
+    FichierInfo *fichier = trouver_fichier_par_cle(cle_md5);
+    if (fichier == NULL) {
+        return 0;
+    }
+
+    int count = 0;
+    FilePeerNode *current = fichier->peers;
+
+    // Si peers est NULL, on compte juste les peers
+    if (peers == NULL) {
+        while (current != NULL) {
+            count++;
+            current = current->next;
+        }
+        return count;
+    }
+
+    current = fichier->peers;
+    while (current != NULL) {
+        peers[count] = current->peer;
+        count++;
+        current = current->next;
+    }
+
+    return count;
+}
+
+FichierInfo* trouver_fichier_par_nom(const char *nom) {
+    if (nom == NULL) return NULL;
+    for (int i = 0; i < NB_BUCKETS; i++) {
+        HashNode *node = fichier_index[i];
+        while (node != NULL) {
+            if (strcmp(node->info->nom, nom) == 0) {
+                return node->info;
+            }
+            node = node->next;
+        }
+    }
+    return NULL;
 }

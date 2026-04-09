@@ -16,29 +16,32 @@ int is_number(const char *s){
 }
 
 // lire une liste de clés
-int lire_liste_cles(char **tokens, int i, int n,
-                    char dest[][TAILLE_MD5], int *nb)
+int lire_liste_cles(char **tokens, int i, int n, char dest[][TAILLE_MD5], int *nb)
 {
     if (i >= n || strcmp(tokens[i], "[") != 0)
         return -1;
 
-
     i++;
+    int initial_count = *nb; // Sauvegarde pour le rollback
 
     while (i < n && strcmp(tokens[i], "]") != 0)
     {
-        if (*nb >= MAX_LISTE)
+        if (*nb >= MAX_LISTE) {
+            *nb = initial_count;
             return -1;
+        }
 
         strncpy(dest[*nb], tokens[i], TAILLE_MD5 - 1);
         dest[*nb][TAILLE_MD5 - 1] = '\0';
 
-        (*nb)++;
+        (*nb)++; // POINT CRITIQUE : Les parenthèses sont obligatoires
         i++;
     }
 
-    if (i >= n)
+    if (i >= n) {
+        *nb = initial_count; // Rollback si crochet fermant manquant
         return -1;
+    }
 
     return i + 1;
 }
@@ -135,50 +138,17 @@ MessageP2P *parse_announce(char **tokens, int n, MessageP2P *msg)
     return msg;
 }
 
-
-// Parsing de "update"
-MessageP2P *parse_update(char **tokens, int n, MessageP2P *msg)
-{
-    msg->nb_seed = 0;
-    msg->nb_leech = 0;
-
-    int i = 1;
-
-    while (i < n)
-    {
-        if (strcmp(tokens[i], "seed") == 0)
-        {
-            int next = lire_liste_cles(tokens, i + 1, n,
-                                       msg->liste_seed_keys,
-                                       &msg->nb_seed);
-            if (next == -1)
-                return msg;
-            i = next;
-        }
-        else if (strcmp(tokens[i], "leech") == 0)
-        {
-            int next = lire_liste_cles(tokens, i + 1, n,
-                                       msg->liste_leech_keys,
-                                       &msg->nb_leech);
-            if (next == -1)
-                return msg;
-            i = next;
-        }
-        else
-        {
-            i++;
-        }
-    }
-
-    return msg;
-}
-
 // parsing de look
-MessageP2P *parse_look(char **tokens, int num_tokens, MessageP2P *msg) {
-    for (int i = 1; i < num_tokens; i++) {
-        if (strcmp(tokens[i], "[") != 0 && strcmp(tokens[i], "]") != 0) {
-            strcpy(msg->hash_cible, tokens[i]);
-            break; // TODO : gérer le cas où il y a plusieurs criteres
+MessageP2P *parse_look(char **tokens, int n, MessageP2P *msg)
+{
+    // On parcourt les mots pour trouver le critère (qui n'est pas un crochet)
+    for (int i = 1; i < n; i++)
+    {
+        if (strcmp(tokens[i], "[") != 0 && strcmp(tokens[i], "]") != 0)
+        {
+            strncpy(msg->hash_cible, tokens[i], sizeof(msg->hash_cible) - 1);
+            msg->hash_cible[sizeof(msg->hash_cible) - 1] = '\0';
+            break; 
         }
     }
     return msg;
@@ -214,20 +184,8 @@ MessageP2P *add_message(char str[])
     if (strcmp(msg->commande, "announce") == 0)
         return parse_announce(tokens, num_tokens, msg);
 
-    if (strcmp(msg->commande, "update") == 0)
-        return parse_update(tokens, num_tokens, msg);
-
-    // else if (strcmp(msg->commande, "look") == 0) {
-    //     return parse_look(tokens, num_tokens, msg);
-    // }
-    // else if (strcmp(msg->commande, "getfile") == 0 || strcmp(msg->commande, "interested") == 0 || strcmp(msg->commande, "have") == 0) {
-    //     return parse_simple_hash(tokens, num_tokens, msg);
-    // }
-    // else if (strcmp(msg->commande, "getpieces") == 0) {
-    //     return parse_getpieces(tokens, num_tokens, msg);
-    // }
-    // TODO : la commande "data" n'est pas gérée car le strtok() casserait le binaire 
+    if (strcmp(msg->commande, "look") == 0)
+        return parse_look(tokens, num_tokens, msg);
     
     return msg;
-
 }

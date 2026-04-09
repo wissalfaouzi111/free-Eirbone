@@ -11,6 +11,7 @@ TEST_SERVER_BIN := $(BIN_DIR)/test_server
 TEST_FILE_BIN := $(BIN_DIR)/test_file
 PEER_OUT_DIR := $(BIN_DIR)/peer
 PEER_STAMP := $(PEER_OUT_DIR)/.compiled
+TEST_PEERS_BIN := $(BIN_DIR)/test_peers
 PEER_SOURCES := $(wildcard src/peer/*.java)
 
 TRACKER_PORT ?= 8080
@@ -18,22 +19,7 @@ TEST_PORT ?= 8081
 
 .PHONY: all tracker peer tests test run-tests run-tracker run-server clean help
 
-all: tracker peer tests
-
-help:
-	@echo "Targets disponibles :"
-	@echo "  make all          -> compile tracker + peer + tests"
-	@echo "  make tracker      -> compile le serveur tracker (C)"
-	@echo "  make peer         -> compile les classes peer (Java)"
-	@echo "  make tests        -> compile les tests C (fichiers + parsing + serveur)"
-	@echo "  make run-tests    -> exécute tous les tests (unitaires et intégration)"
-	@echo "  make test         -> compile puis exécute les tests"
-	@echo "  make run-tracker  -> lance le serveur tracker"
-	@echo "  make run-server   -> alias de run-tracker"
-	@echo "  make clean        -> supprime les artefacts de build"
-	@echo ""
-	@echo "Option :"
-	@echo "  TRACKER_PORT=xxxx (défaut: 8080)"
+all: $(TRACKER_BIN) $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN) $(TEST_PEERS_BIN)
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
@@ -41,36 +27,34 @@ $(BIN_DIR):
 $(PEER_OUT_DIR):
 	mkdir -p $(PEER_OUT_DIR)
 
-tracker: $(TRACKER_BIN)
+$(TRACKER_BIN): src/tracker/server.c src/tracker/message.c src/tracker/file.c src/tracker/peers.c | $(BIN_DIR)
+	$(CC) $(CFLAGS) $^ -o $@
 
-$(TRACKER_BIN): src/tracker/server.c src/tracker/message.c src/tracker/message.h | $(BIN_DIR)
-	$(CC) $(CFLAGS) src/tracker/server.c src/tracker/message.c -o $(TRACKER_BIN)
+$(TEST_BIN): test/test_message.c src/tracker/message.c src/tracker/file.c src/tracker/peers.c | $(BIN_DIR)
+	$(CC) $(CFLAGS) $^ -o $@
 
-tests: $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN)
-
-$(TEST_BIN): test/test_message.c src/tracker/message.c src/tracker/message.h | $(BIN_DIR)
-	$(CC) $(CFLAGS) test/test_message.c src/tracker/message.c -o $(TEST_BIN)
-
-# Nouvelle règle pour compiler le test du serveur
 $(TEST_SERVER_BIN): test/test_server.c | $(BIN_DIR)
-	$(CC) $(CFLAGS) test/test_server.c -o $(TEST_SERVER_BIN)
+	$(CC) $(CFLAGS) $^ -o $@
 
-$(TEST_FILE_BIN): test/test_file.c src/tracker/file.c src/tracker/file.h | $(BIN_DIR)
-	$(CC) $(CFLAGS) test/test_file.c src/tracker/file.c -o $(TEST_FILE_BIN)
+$(TEST_FILE_BIN): test/test_file.c src/tracker/file.c src/tracker/peers.c | $(BIN_DIR)
+	$(CC) $(CFLAGS) $^ -o $@
 
-run-tests: $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN) $(TRACKER_BIN)
-	@echo "\n=== 1. TESTS UNITAIRES ==="
+$(TEST_PEERS_BIN): test/test_peers.c src/tracker/peers.c | $(BIN_DIR)
+	$(CC) $(CFLAGS) $^ -o $@
 
+run-tests: all
+	@echo "\n=== 1. TESTS PEERS ==="
+	./$(TEST_PEERS_BIN)
+	@echo "\n=== 2. TESTS FILE ==="
 	./$(TEST_FILE_BIN)
-	
-	@echo "\nParsing"
+	@echo "\n=== 3. TESTS PARSING ==="
 	./$(TEST_BIN)
-	
-	@echo "\n=== 3. TESTS D'INTÉGRATION (Serveur) ==="
+	@echo "\n=== 4. TESTS D'INTÉGRATION SERVEUR ==="
 	@./$(TRACKER_BIN) $(TEST_PORT) & SERVER_PID=$$!; \
 	sleep 1; \
 	./$(TEST_SERVER_BIN) $(TEST_PORT); \
 	TEST_RESULT=$$?; \
+	kill $$SERVER_PID; \
 	exit $$TEST_RESULT
 
 test: tests run-tests
@@ -87,5 +71,4 @@ run-tracker: $(TRACKER_BIN)
 run-server: run-tracker
 
 clean:
-	rm -f $(TRACKER_BIN) $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN)
-	rm -rf $(PEER_OUT_DIR)
+	rm -rf $(BIN_DIR)
