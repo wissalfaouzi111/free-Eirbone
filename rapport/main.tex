@@ -1,0 +1,116 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+
+\title{Rapport Intermédiaire \\ Projet Eirbone \\ Application P2P de partage de fichiers}
+\author{El Morabet Nour \\ Rachid Dina \\ Colin Melissa \\ Faouzi Wissal \\ Delgado Romero David}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+Le projet Eirbone consiste à développer une application de partage de fichiers en mode pair-à-pair (P2P). 
+Dans ce modèle, chaque machine joue à la fois le rôle de client et de serveur.
+
+L'objectif est de permettre le transfert de fichiers volumineux en fragmentant ces fichiers en plusieurs pièces, 
+tout en assurant une communication efficace entre les différents pairs.
+
+\section{Architecture du système}
+
+L'architecture repose sur deux composants principaux :
+
+\subsection{Tracker}
+Le tracker est une entité centrale permettant :
+\begin{itemize}
+    \item d’enregistrer les pairs présents dans le réseau
+    \item de référencer les fichiers disponibles
+    \item de fournir la liste des pairs possédant un fichier
+\end{itemize}
+
+\subsection{Peers}
+Les peers sont les clients du système. Ils peuvent :
+\begin{itemize}
+    \item partager des fichiers (seeders)
+    \item télécharger des fichiers (leechers)
+    \item communiquer entre eux directement
+\end{itemize}
+
+\section{Protocole de communication}
+
+\subsection{Communication Peer-Tracker}
+
+Les principales commandes implémentées sont :
+
+\begin{itemize}
+    \item \textbf{announce} : annonce des fichiers disponibles
+    \item \textbf{look} : recherche de fichiers
+    \item \textbf{getfile} : récupération des peers
+\end{itemize}
+
+Les messages sont envoyés en texte et séparés par des espaces.
+
+\subsection{Communication Peer-Peer}
+
+Les peers échangent :
+
+\begin{itemize}
+    \item \textbf{interested} : signaler l’intérêt pour un fichier
+    \item \textbf{have} : envoyer le buffermap
+    \item \textbf{getpieces} : demander des morceaux
+    \item \textbf{data} : envoyer les données binaires
+\end{itemize}
+
+\section{Implémentation du Peer}
+
+\input{peer_section.tex}
+
+\section{Choix techniques}
+
+\begin{itemize}
+    \item Java pour le peer
+    \item TCP pour la communication
+    \item MD5 pour l’identification des fichiers
+    \item Threads pour gérer plusieurs connexions
+\end{itemize}
+
+\section{Travail réalisé}
+
+\begin{itemize}
+    \item Implémentation du serveur peer
+    \item Gestion des commandes réseau
+    \item Encodage du buffermap en Base64
+    \item Communication avec le tracker
+\end{itemize}
+
+\section{Difficultés rencontrées}
+
+\begin{itemize}
+    \item 
+    \item 
+    \item 
+\end{itemize}
+
+\section{Travail restant}
+
+\begin{itemize}
+    \item Optimisation du téléchargement
+    \item Interface utilisateur
+    \item Tests complets en réseau
+\end{itemize}
+
+\section{Conclusion}
+
+Ce projet nous a permis de comprendre les principes fondamentaux des systèmes distribués 
+et du protocole P2P. La suite du projet consistera à améliorer les performances 
+et finaliser l’ensemble des fonctionnalités.
+
+\end{document}
