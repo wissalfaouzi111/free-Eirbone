@@ -19,6 +19,16 @@ data/*
 *.iml
 *.eclipse/
 
+# Fichiers LaTeX
+*.aux
+*.log
+*.pdf
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.out
+*.toc
+
 # Fichiers systèmes
 .DS_Store
 Thumbs.db
