@@ -70,9 +70,7 @@ int answer(MessageP2P *msg, char *response, char *client_ip) {
     } else if (strcmp(msg->commande, "announce") == 0) {
         announce(msg, client_ip);
         sprintf(response, "ok\n");
-    } else if (strcmp(msg->commande, "update") == 0) {
-        sprintf(response, "ok\n");
-    } else if (strcmp(msg->commande, "look") == 0) {
+    }else if (strcmp(msg->commande, "look") == 0) {
         char* output = look(msg);
         if (output == NULL) {
             sprintf(response, "list [ ]\n");
