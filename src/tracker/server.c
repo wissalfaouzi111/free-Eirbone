@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include "message.h" 
+#include "file.h"
+#define MAX_OUTPUT 1024
 
 // pour gerer le ctrl+C et liberer le port
 #include <signal.h>  
@@ -27,35 +29,132 @@ void error(char *msg){
     exit(1);
 }
 
-void anwser(MessageP2P *msg, int newsockfd, int n) {
-    char response[BUFLEN];
-    bzero(response, BUFLEN);
+void announce(MessageP2P *msg, char *client_ip) {
+    if (msg == NULL) return;
+    for (int i = 0; i < msg->nb_seed; i++) {
+        FichierInfo *fichier = creer_fichier_info(msg->liste_seed[i].nom, msg->liste_seed[i].taille, msg->liste_seed[i].taille_piece, msg->liste_seed[i].cle_md5);
+        if (fichier != NULL) {
+            Peer *peer = creer_peer(client_ip, msg->port); 
+            if (peer != NULL) {
+                add_peer_to_file(fichier->cle_md5, peer);
+            }
+        }
+    }
+}
+
+char* look(MessageP2P *msg) {
+    if (msg == NULL || msg->commande[0] == '\0') return NULL;
+
+    char *output = malloc(MAX_OUTPUT);
+    if (output == NULL) return NULL;
+
+    snprintf(output, MAX_OUTPUT, "list [");
+    
+    if (strlen(msg->hash_cible) > 0) {
+        FichierInfo *fichier = trouver_fichier_par_nom(msg->hash_cible);
+        if (fichier != NULL) {
+            size_t len = strlen(output);
+            snprintf(output + len, MAX_OUTPUT - len, " %s %ld %d %s", 
+                    fichier->nom, fichier->taille, fichier->taille_piece, fichier->cle_md5);
+        }
+    }
+    strcat(output, " ]\n");
+    return output;
+}
+
+int answer(MessageP2P *msg, char *response, char *client_ip) {
+    int is_error = 0;
     if (msg == NULL || msg->commande[0] == '\0') {
         sprintf(response, "ERROR Invalid format\n");
+        is_error = 1;
     } else if (strcmp(msg->commande, "announce") == 0) {
-        sprintf(response, "OK Announce saved. Port=%d, Seeds=%d\n", msg->port, msg->nb_seed);
+        announce(msg, client_ip);
+        sprintf(response, "ok\n");
+    } else if (strcmp(msg->commande, "update") == 0) {
+        sprintf(response, "ok\n");
     } else if (strcmp(msg->commande, "look") == 0) {
-        sprintf(response, "OK Look received\n");
+        char* output = look(msg);
+        if (output == NULL) {
+            sprintf(response, "list [ ]\n");
+        } else {
+            strncpy(response, output, MAX_OUTPUT - 1);
+            response[MAX_OUTPUT - 1] = '\0';
+            free(output);
+        }
     } else {
         sprintf(response, "ERROR Unknown command\n");
+        is_error = 1;
     }
+    return is_error;
+}
 
-    n = write(newsockfd, response, strlen(response));
-    if (n < 0) error("ERROR writing to socket");
+void handle_client(int newsockfd, struct sockaddr_in *cli_addr) {
+    char buffer[BUFLEN];
+    char response[MAX_OUTPUT];
+    int error_count = 0;
+    int n;
     
-    printf("Réponse envoyée : %s", response);
+    char *client_ip = inet_ntoa(cli_addr->sin_addr);
+    printf("Connexion acceptée de %s\n", client_ip);
 
-    // 4. LE NETTOYAGE
-    if (msg != NULL) free(msg);
+    // Keep-alive et coupure après 3 erreurs
+    while (error_count < 3) {
+        bzero(buffer, BUFLEN);
+
+        // printf("=> read() ? ...");
+        // getchar(); 
+        // printf("OK\n");
+
+        n = read(newsockfd, buffer, BUFLEN - 1); //on a modifié la taille de buffer lu(10)
+        // if (n < 0) {
+        //     error("ERROR reading from socket");
+        //     close(newsockfd);
+        //     continue; // Passer à la prochaine connexion
+        // }
+        
+        if (n <= 0) {
+            printf("Le client %s s'est déconnecté.\n", client_ip);
+            break; // Déconnexion propre ou erreur réseau
+        }
+        // printf("Here is the message: (size: %d bytes) %s\n", n, buffer);
+
+        // printf("=> write() ? ...");
+        // getchar(); 
+        // printf("OK\n");
+
+        // n = write(newsockfd, "I got your message",18);
+        // if (n < 0) error("ERROR writing to socket");
+        
+        MessageP2P *msg = add_message(buffer);
+        bzero(response, BUFLEN);
+        int is_error = 0;
+
+        is_error = answer(msg, response, client_ip);
+
+        if (is_error) {
+            error_count++;
+            printf("Erreur de formatage (%d/3)\n", error_count);
+        } else {
+            error_count = 0; // Remise à zéro si message valide
+        }
+
+        write(newsockfd, response, strlen(response));
+        if (msg != NULL) free(msg);
+    }
+    
+    if (error_count >= 3) {
+        printf("Déconnexion forcée de %s : 3 erreurs successives.\n", client_ip);
+    }
     close(newsockfd);
 }
+
+
 
 int main(int argc, char *argv[]){
     int newsockfd, portno;
     socklen_t cli_socket_len;
-    char buffer[BUFLEN];
     struct sockaddr_in serv_addr, cli_addr;
-    int n;
+
     if (argc < 2) {
         fprintf(stderr,"usage: %s <port>\n", argv[0]);
         exit(1);
@@ -96,30 +195,13 @@ int main(int argc, char *argv[]){
     // getchar(); 
     // printf("OK\n");
 
-    cli_socket_len = sizeof(cli_addr);
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_socket_len);
-    if (newsockfd < 0) error("ERROR on accept()");
+    while (1) { // Boucle pour accepter plusieurs connexions successives
+        cli_socket_len = sizeof(cli_addr);
+        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_socket_len);
+        if (newsockfd < 0) continue;
 
-    bzero(buffer, BUFLEN);
-
-    // printf("=> read() ? ...");
-    // getchar(); 
-    // printf("OK\n");
-
-    n = read(newsockfd, buffer, BUFLEN - 1); //on a modifié la taille de buffer lu(10)
-    if (n < 0) error("ERROR reading from socket");
-    printf("Here is the message: (size: %d bytes) %s\n", n, buffer);
-
-    // printf("=> write() ? ...");
-    // getchar(); 
-    // printf("OK\n");
-
-    // n = write(newsockfd, "I got your message",18);
-    // if (n < 0) error("ERROR writing to socket");
-
-    MessageP2P *msg = add_message(buffer);
-  
-    anwser(msg, newsockfd, n);
+        handle_client(newsockfd, &cli_addr);
+    }
     close(sockfd);
 
     return 0; 

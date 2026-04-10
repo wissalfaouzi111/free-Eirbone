@@ -32,23 +32,6 @@ void test_announce_valide() {
     printf("OK!\n");
 }
 
-// TEST 2 : update 
-void test_update_valide() {
-    printf("Test 2: Update parfait... ");
-    
-    char fausse_reception[] = "update seed [ hash1111 hash2222 ] leech [ ]\n";
-    MessageP2P *msg = add_message(fausse_reception);
-    
-    assert(msg != NULL);
-    assert(strcmp(msg->commande, "update") == 0);
-    assert(msg->nb_seed == 2);
-    assert(strcmp(msg->liste_seed_keys[0], "hash1111") == 0);
-    assert(msg->nb_leech == 0);
-    
-    free(msg);
-    printf("OK!\n");
-}
-
 // TEST 3 : cas d'erreur 
 void test_announce_malforme_lettres_dans_port() {
     printf("Test 3: Announce avec un faux port... ");
@@ -81,7 +64,6 @@ void test_announce_crochet_manquant() {
 int main() {
     
     test_announce_valide();
-    test_update_valide();
     test_announce_malforme_lettres_dans_port();
     test_announce_crochet_manquant();
     

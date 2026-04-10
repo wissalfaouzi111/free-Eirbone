@@ -1,22 +1,12 @@
 #ifndef __MSG_H__
 #define __MSG_H__
 
+#include "file.h"
 #define MAX_LISTE 50
-#define TAILLE_MD5 33 // 32 caractères + le caractère de fin de chaîne '\0'
 #define TAILLE_PIECE 1024
 #define BUFLEN 256
 #define DEFAULT_PORT 6881
 #define MAX_TOKENS 50
-
-
-// Sous-structure pour Fichier
-typedef struct {
-    char nom[256];
-    long taille;
-    int taille_piece;      // Sera toujours 1024
-    char cle_md5[TAILLE_MD5]; 
-} FichierInfo;
-
 
 typedef struct {
     // announce, look, data...
