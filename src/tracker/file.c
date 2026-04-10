@@ -1,6 +1,7 @@
 #include "file.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 typedef struct HashNode {
     FichierInfo *info;
@@ -220,4 +221,28 @@ FichierInfo* trouver_fichier_par_nom(const char *nom) {
         }
     }
     return NULL;
+}
+
+char* generer_liste_peers_pour_fichier(const char *cle_md5) {
+    char *buffer = malloc(1024);
+    if (buffer == NULL) return NULL;
+    
+    strcpy(buffer, "[");
+    
+    FichierInfo *fichier = trouver_fichier_par_cle(cle_md5);
+    if (fichier == NULL) {
+        free(buffer);
+        return NULL;
+    }
+    
+    FilePeerNode *current = fichier->peers;
+    while (current != NULL) {
+        char temp[64];
+        snprintf(temp, sizeof(temp), " %s:%d", get_peer_ip(current->peer), get_peer_port(current->peer));
+        strcat(buffer, temp);
+        current = current->next;
+    }
+    
+    strcat(buffer, " ]");
+    return buffer;
 }

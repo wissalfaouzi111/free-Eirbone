@@ -38,4 +38,6 @@ int get_peers_for_file(const char *cle_md5, Peer *peers[]);
 
 FichierInfo* trouver_fichier_par_nom(const char *nom);
 
+char* generer_liste_peers_pour_fichier(const char *cle_md5);
+
 #endif /* __FILE_H__ */

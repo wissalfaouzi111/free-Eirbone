@@ -21,32 +21,36 @@ int main(int argc, char *argv[]) {
 
     char buffer[256];
     
-    // Test 1: Message valide
+    // --- ETAPE 1 : ANNOUNCE ---
     write(sockfd, "announce listen 6881 seed [ video.mp4 2048 1024 hash1234 ] leech [ ]\n", 69);
     memset(buffer, 0, 256);
     read(sockfd, buffer, 255);
     assert(strcmp(buffer, "ok\n") == 0);
 
-    // Test 2: Message look valide (le fichier a été ajouté par le announce)
+    // --- ETAPE 2 : LOOK ---
     write(sockfd, "look [ video.mp4 ]\n", 19);
     memset(buffer, 0, 256);
     read(sockfd, buffer, 255);
     assert(strstr(buffer, "list [ video.mp4 2048 1024 hash1234 ]\n") != NULL);
 
-    // Test 3: 3 messages invalides consécutifs
-    for(int i=0; i<3; i++) {
+    // --- ETAPE 3 : GETFILE ---
+    write(sockfd, "getfile hash1234\n", 17);
+    memset(buffer, 0, 256);
+    read(sockfd, buffer, 255);
+    assert(strcmp(buffer, "peers hash1234 [ 127.0.0.1:6881 ]\n") == 0);
+
+    // --- ETAPE 4 : SECURITE (3 ERREURS) ---
+    for(int i = 0; i < 3; i++) {
         write(sockfd, "badcommand\n", 11);
         memset(buffer, 0, 256);
         read(sockfd, buffer, 255);
         assert(strcmp(buffer, "ERROR Unknown command\n") == 0);
     }
-
-    // Le serveur doit fermer la connexion. Un 4e write/read échouera ou retournera 0.
     write(sockfd, "look [ video.mp4 ]\n", 19);
     int n = read(sockfd, buffer, 255);
-    assert(n == 0); // 0 indique que le serveur a fermé le socket (règle des 3 erreurs)
+    assert(n == 0);
 
-    printf("\n✅ TEST D'INTEGRATION ET KEEP-ALIVE REUSSI\n");
+    printf("✅ TEST D'INTEGRATION SERVEUR (Announce + Look + Getfile + Kick) REUSSI\n");
     close(sockfd);
     return 0;
 }

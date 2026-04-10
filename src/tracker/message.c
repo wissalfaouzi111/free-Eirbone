@@ -154,6 +154,16 @@ MessageP2P *parse_look(char **tokens, int n, MessageP2P *msg)
     return msg;
 }
 
+// Parsing de getfile
+MessageP2P *parse_getfile(char **tokens, int n, MessageP2P *msg)
+{
+    if (n > 1)
+    {
+        strncpy(msg->hash_cible, tokens[1], TAILLE_MD5 - 1);
+        msg->hash_cible[TAILLE_MD5 - 1] = '\0';
+    }
+    return msg;
+}
 
 // FONCTION PRINCIPALE
 MessageP2P *add_message(char str[])
@@ -187,5 +197,9 @@ MessageP2P *add_message(char str[])
     if (strcmp(msg->commande, "look") == 0)
         return parse_look(tokens, num_tokens, msg);
     
+    if (strcmp(msg->commande, "getfile") == 0)
+        return parse_getfile(tokens, num_tokens, msg);
+
     return msg;
 }
+

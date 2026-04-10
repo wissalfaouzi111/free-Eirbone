@@ -30,6 +30,8 @@ void delete_all_peers(void);
 
 int get_peers_count(void);
 
+Peer* trouver_peer_par_ip(const char *ip);
+
 void print_all_peers(void);
 
 #endif /* __PEERS_H__ */

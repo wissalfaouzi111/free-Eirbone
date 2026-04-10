@@ -62,15 +62,39 @@ char* look(MessageP2P *msg) {
     return output;
 }
 
+void update_tracker(MessageP2P *msg, char *client_ip) {
+    if (msg == NULL) return;
+    
+    Peer *peer = trouver_peer_par_ip(client_ip);
+    if (peer == NULL) {
+        // Fallback si le pair fait un update avant un announce
+        peer = creer_peer(client_ip, 6881); 
+    }
+    
+    for (int i = 0; i < msg->nb_seed; i++) {
+        add_peer_to_file(msg->liste_seed_keys[i], peer);
+    }
+    
+    for (int i = 0; i < msg->nb_leech; i++) {
+        add_peer_to_file(msg->liste_leech_keys[i], peer);
+    }
+}
+
 int answer(MessageP2P *msg, char *response, char *client_ip) {
     int is_error = 0;
     if (msg == NULL || msg->commande[0] == '\0') {
         sprintf(response, "ERROR Invalid format\n");
         is_error = 1;
-    } else if (strcmp(msg->commande, "announce") == 0) {
+    }
+    else if (strcmp(msg->commande, "announce") == 0) {
         announce(msg, client_ip);
         sprintf(response, "ok\n");
-    }else if (strcmp(msg->commande, "look") == 0) {
+    }
+    else if (strcmp(msg->commande, "update") == 0) {
+        update_tracker(msg, client_ip);
+        sprintf(response, "ok\n"); 
+    }
+    else if (strcmp(msg->commande, "look") == 0) {
         char* output = look(msg);
         if (output == NULL) {
             sprintf(response, "list [ ]\n");
@@ -79,7 +103,17 @@ int answer(MessageP2P *msg, char *response, char *client_ip) {
             response[MAX_OUTPUT - 1] = '\0';
             free(output);
         }
-    } else {
+    }
+    else if (strcmp(msg->commande, "getfile") == 0) {
+        char *peers_str = generer_liste_peers_pour_fichier(msg->hash_cible);
+        if (peers_str != NULL) {
+            snprintf(response, MAX_OUTPUT, "peers %s %s\n", msg->hash_cible, peers_str);
+            free(peers_str);
+        } else {
+            snprintf(response, MAX_OUTPUT, "peers %s [ ]\n", msg->hash_cible);
+        }
+    }
+    else {
         sprintf(response, "ERROR Unknown command\n");
         is_error = 1;
     }

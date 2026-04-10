@@ -131,3 +131,17 @@ void print_all_peers(void) {
         current = current->next;
     }
 }
+
+
+Peer* trouver_peer_par_ip(const char *ip) {
+    if (ip == NULL) return NULL;
+    
+    PeerNode *courant = peer_list; 
+    while (courant != NULL) {
+        if (strcmp(get_peer_ip(courant->peer), ip) == 0) {
+            return courant->peer;
+        }
+        courant = courant->next;
+    }
+    return NULL;
+}
