@@ -45,48 +45,61 @@ public class PeerHandler implements Runnable {
             // System.out.println("[PeerHandler] Fichier inconnu : " + key);
             return;
         }  
-        String base64 = encoderBuffermap(dl.localBufferMap, dl.file.totalPieces());
+        String base64 = encoderBuffermap(dl.getBufferMap(), dl.file.totalPieces());
         writer.println("have " + key + " " + base64);
         // System.out.println("[PeerHandler] have envoyé pour " + key);
 
     }
     private void handleGetpieces(String line){
-        String[] tokens = line.split("\\s+");
+        String[] tokens = line.split("\\s+", 3);
         if (tokens.length < 3) return;
         String key = tokens[1];
 
         DownloadState dl = state.downloads.get(key);
         if (dl == null) {
             return;
-        }  
+        }
+
+        String indicesSection = tokens[2].trim();
+        int openBracket = indicesSection.indexOf('[');
+        int closeBracket = indicesSection.lastIndexOf(']');
+        if (openBracket < 0 || closeBracket < 0 || closeBracket <= openBracket) {
+            return;
+        }
+
+        String[] indices = indicesSection.substring(openBracket + 1, closeBracket).trim().split("\\s+");
         StringBuilder header = new StringBuilder();
         header.append("data ").append(key).append(" [");
         List<Integer> listeIndices = new ArrayList<>();
-        for (int i = 0; i < indices.length; i++) {
-            int idx = Integer.parseInt(indices[i].trim());
-            // vérifier qu'on possede bien cette pièce
-            if (!dl.localBufferMap.get(idx)) {
-                // System.out.println("[PeerHandler] Pièce " + idx + " non disponible");
+        boolean first = true;
+        for (String token : indices) {
+            if (token.isEmpty()) {
                 continue;
             }
-            listeIndices.add(idx);
-            if (i > 0) header.append(" ");
+            int idx = Integer.parseInt(token.trim());
+            if (!dl.hasPiece(idx)) {
+                continue;
+            }
+            if (!first) {
+                header.append(" ");
+            }
             header.append(idx).append(" 1024");
+            listeIndices.add(idx);
+            first = false;
         }
         header.append("]");
         writer.println(header.toString());
         writer.flush();
 
-        RandomAccessFile raf = new RandomAccessFile(dl.file.filename, "r");
-        for (int idx : listeIndices) {
-            byte[] piece = new byte[1024];
-            raf.seek((long) idx * 1024);
-            raf.read(piece); // lit 1024 octets 
-            rawOut.write(piece);
+        try {
+            for (int idx : listeIndices) {
+                byte[] piece = dl.readPiece(idx);
+                rawOut.write(piece);
+            }
+            rawOut.flush();
+        } catch (IOException e) {
+            System.out.println("[PeerHandler] Erreur en lisant une pièce : " + e.getMessage());
         }
-        rawOut.flush();
-        raf.close();
-
     }
     private void handleHave(String line)       { 
         String[] tokens = line.split("\\s+", 3);
@@ -111,7 +124,7 @@ public class PeerHandler implements Runnable {
             }
         }
 
-        String notreBase64 = encoderBuffermap(dl.localBufferMap, dl.file.totalPieces());
+        String notreBase64 = encoderBuffermap(dl.getBufferMap(), dl.file.totalPieces());
         writer.println("have " + key + " " + notreBase64);
     }
     
