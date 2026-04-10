@@ -5,7 +5,6 @@
 #include "../src/tracker/file.h"
 
 int main() {
-    printf("--- TESTS FILE ---\n");
     FichierInfo *f1 = creer_fichier_info("film.mp4", 1000, 1024, "MD5_FILM");
     assert(f1 != NULL);
     assert(strcmp(f1->nom, "film.mp4") == 0);
