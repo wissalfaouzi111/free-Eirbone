@@ -2,20 +2,44 @@
 class FileInfo
 {
 
-    String Filename;
-    int length;
-    int Piece_size;
+    String filename;
+    long length;
+    int pieceSize;
     String key;
 
-
-    public void setFilename(String name){
-        Filename = name;
+    public FileInfo(String name, long length, int pieceSize, String key){
+        this.filename = name;
+        this.length = length;
+        this.pieceSize = pieceSize;
+        this.key = key;
     }
+    
+    public String getFilename() {
+        return filename;
+    }
+
+    public long getLength() {
+        return length;
+    }
+
+    public int getPieceSize() {
+        return pieceSize;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+
     public void setLength(int length){
         length = length;
     }
-    public void setPieceSize(int PieceSize){
-        Piece_size = PieceSize;
+
+    public void setPieceSize(int pieceSize){
+        this.pieceSize = pieceSize;
     }
     public void setKey(String key){
         Key = key;
