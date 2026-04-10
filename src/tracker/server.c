@@ -148,7 +148,7 @@ void handle_client(int newsockfd, struct sockaddr_in *cli_addr) {
             printf("Le client %s s'est déconnecté.\n", client_ip);
             break; // Déconnexion propre ou erreur réseau
         }
-        // printf("Here is the message: (size: %d bytes) %s\n", n, buffer);
+        printf("[%s] Recu (%d octets): %.*s\n", client_ip, n, n, buffer);
 
         // printf("=> write() ? ...");
         // getchar(); 
@@ -158,6 +158,11 @@ void handle_client(int newsockfd, struct sockaddr_in *cli_addr) {
         // if (n < 0) error("ERROR writing to socket");
         
         MessageP2P *msg = add_message(buffer);
+        if (msg != NULL && msg->commande[0] != '\0') {
+            printf("[%s] Commande detectee: %s\n", client_ip, msg->commande);
+        } else {
+            printf("[%s] Commande detectee: <invalide>\n", client_ip);
+        }
         bzero(response, BUFLEN);
         int is_error = 0;
 
@@ -169,6 +174,8 @@ void handle_client(int newsockfd, struct sockaddr_in *cli_addr) {
         } else {
             error_count = 0; // Remise à zéro si message valide
         }
+
+        printf("[%s] Reponse envoyee: %s", client_ip, response);
 
         write(newsockfd, response, strlen(response));
         if (msg != NULL) free(msg);
