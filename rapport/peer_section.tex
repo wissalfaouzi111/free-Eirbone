@@ -13,12 +13,7 @@ Chaque nouvelle connexion est gérée dans un thread séparé.
     \item Lorsqu’un pair se connecte, un \texttt{PeerHandler} est créé
     \item Chaque handler traite les requêtes indépendamment
 \end{itemize}
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.7\linewidth]{peerserver.png}
-    \caption{Architecture du PeerServer}
-    \label{fig:peerserver}
-\end{figure}
+
 Cela permet de gérer plusieurs connexions simultanément.
 
 
