@@ -65,10 +65,18 @@ $(PEER_STAMP): $(PEER_SOURCES) | $(PEER_OUT_DIR)
 	$(JAVAC) -d $(PEER_OUT_DIR) $(PEER_SOURCES)
 	touch $(PEER_STAMP)
 
-run-tracker: $(TRACKER_BIN)
-	@pkill -x tracker_server >/dev/null 2>&1 || true
+stop-tracker:
+	@pkill -9 -x tracker_server >/dev/null 2>&1 || true
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if ! ss -ltn "( sport = :$(TRACKER_PORT) )" | tail -n +2 | grep -q .; then \
+			break; \
+		fi; \
+		sleep 0.1; \
+	done
+
+run-tracker: stop-tracker $(TRACKER_BIN)
 	$(TRACKER_BIN) $(TRACKER_PORT)
-	
+
 
 run-server: run-tracker
 
