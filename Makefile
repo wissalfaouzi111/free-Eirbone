@@ -17,7 +17,7 @@ PEER_SOURCES := $(wildcard src/peer/*.java)
 TRACKER_PORT ?= 8080
 TEST_PORT ?= 8081
 
-.PHONY: all tracker peer tests test run-tests run-tracker run-server clean help
+.PHONY: all tracker peer tests test run-tests run-tracker run-server stop-tracker clean help
 
 all: $(TRACKER_BIN) $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN) $(TEST_PEERS_BIN)
 
@@ -66,9 +66,14 @@ $(PEER_STAMP): $(PEER_SOURCES) | $(PEER_OUT_DIR)
 	touch $(PEER_STAMP)
 
 run-tracker: $(TRACKER_BIN)
+	@pkill -x tracker_server >/dev/null 2>&1 || true
 	$(TRACKER_BIN) $(TRACKER_PORT)
+	
 
 run-server: run-tracker
+
+
+
 
 clean:
 	rm -rf $(BIN_DIR)
