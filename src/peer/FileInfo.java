@@ -7,6 +7,16 @@ class FileInfo
     int Piece_size;
     String key;
 
+    public FileInfo(String name, long length, int pieceSize, String key){
+        this.filename = name;
+        this.length = length;
+        this.pieceSize = pieceSize;
+        this.key = key;
+    }
+    
+    public String getFilename() {
+        return filename;
+    }
 
     public FileInfo(String name, long length, int pieceSize, String key){
         this.Filename = name;
