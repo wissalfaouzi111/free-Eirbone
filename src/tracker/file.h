@@ -1,7 +1,7 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
-#define MAX_FICHIERS 100
+#define NB_BUCKETS 100
 #define TAILLE_MD5 33 // 32 caractères + le caractère de fin de chaîne '\0'
 
 #include "peers.h"
@@ -16,7 +16,6 @@ typedef struct {
     long taille;
     int taille_piece;      // Sera toujours 1024
     char cle_md5[TAILLE_MD5];
-    FilePeerNode *peers;   // Liste chaînée de peers
 
 } FichierInfo;
 
