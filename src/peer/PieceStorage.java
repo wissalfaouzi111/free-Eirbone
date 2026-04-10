@@ -8,8 +8,9 @@ import java.util.BitSet;
 import java.util.List;
 
 /**
- * PieceStorage gestiona el archivo parcial de descarga en disco.
- * Usa RandomAccessFile para leer y escribir piezas a su offset correcto.
+ * PieceStorage manages the partial download file on disk.
+ * It uses RandomAccessFile to read and write pieces at their correct offsets.
+ * Supports downloading files in arbitrary piece order and serving pieces even if the file is incomplete.
  */
 public class PieceStorage {
     private static final String INCOMPLETE_DIR = "data/incomplete";
@@ -22,6 +23,12 @@ public class PieceStorage {
     private final int totalPieces;
     private final long totalLength;
 
+    /**
+     * Creates a new PieceStorage for the given file.
+     * Initializes the partial file with the correct total length.
+     * @param fileInfo the file metadata
+     * @throws IOException if directories cannot be created or file cannot be initialized
+     */
     public PieceStorage(FileInfo fileInfo) throws IOException {
         this.fileInfo = fileInfo;
         this.pieceSize = fileInfo.getPieceSize();
@@ -35,27 +42,35 @@ public class PieceStorage {
         this.raf.setLength(totalLength);
     }
 
+    /**
+     * Creates the necessary directories if they do not exist.
+     * @throws IOException if directories cannot be created
+     */
     private void createDirectories() throws IOException {
         File incomplete = new File(INCOMPLETE_DIR);
         if (!incomplete.exists() && !incomplete.mkdirs()) {
-            throw new IOException("No se pudo crear el directorio: " + INCOMPLETE_DIR);
+            throw new IOException("Could not create directory: " + INCOMPLETE_DIR);
         }
 
         File complete = new File(COMPLETE_DIR);
         if (!complete.exists() && !complete.mkdirs()) {
-            throw new IOException("No se pudo crear el directorio: " + COMPLETE_DIR);
+            throw new IOException("Could not create directory: " + COMPLETE_DIR);
         }
     }
 
     /**
-     * Escribe una pieza en el archivo parcial y marca la pieza como disponible.
+     * Writes a piece to the partial file at the correct offset and marks it as available.
+     * @param index the piece index
+     * @param data the piece data (must be <= pieceSize)
+     * @throws IOException if write fails
+     * @throws IllegalArgumentException if index is out of range
      */
     public synchronized void writePiece(int index, byte[] data) throws IOException {
         if (index < 0 || index >= totalPieces) {
-            throw new IllegalArgumentException("Índice de pieza fuera de rango: " + index);
+            throw new IllegalArgumentException("Piece index out of range: " + index);
         }
         if (data.length > pieceSize) {
-            throw new IOException("El tamaño de datos de la pieza excede " + pieceSize + " bytes.");
+            throw new IOException("Piece data size exceeds " + pieceSize + " bytes.");
         }
 
         System.out.println("[PieceStorage] Writing piece " + index);
@@ -67,25 +82,34 @@ public class PieceStorage {
     }
 
     /**
-     * Lee una pieza desde el archivo parcial si está disponible.
+     * Reads a piece from the partial file if it is available.
+     * @param index the piece index
+     * @return the piece data
+     * @throws IOException if piece is not available or read fails
+     * @throws IllegalArgumentException if index is out of range
      */
     public synchronized byte[] readPiece(int index) throws IOException {
         if (!hasPiece(index)) {
-            throw new IOException("La pieza " + index + " no está disponible.");
+            throw new IOException("Piece " + index + " is not available.");
         }
         if (index < 0 || index >= totalPieces) {
-            throw new IllegalArgumentException("Índice de pieza fuera de rango: " + index);
+            throw new IllegalArgumentException("Piece index out of range: " + index);
         }
 
         raf.seek((long) index * pieceSize);
         byte[] piece = new byte[pieceSize];
         int read = raf.read(piece);
         if (read != pieceSize) {
-            throw new IOException("Lectura incompleta de pieza " + index + ", bytes leídos: " + read);
+            throw new IOException("Incomplete read of piece " + index + ", bytes read: " + read);
         }
         return piece;
     }
 
+    /**
+     * Checks if a piece is available.
+     * @param index the piece index
+     * @return true if the piece is available
+     */
     public synchronized boolean hasPiece(int index) {
         if (index < 0 || index >= totalPieces) {
             return false;
@@ -93,10 +117,18 @@ public class PieceStorage {
         return bufferMap.get(index);
     }
 
+    /**
+     * Checks if the download is complete (all pieces are available).
+     * @return true if all pieces are downloaded
+     */
     public synchronized boolean isComplete() {
         return bufferMap.cardinality() == totalPieces;
     }
 
+    /**
+     * Returns a list of available piece indices.
+     * @return list of piece indices that are available
+     */
     public synchronized List<Integer> getAvailablePieces() {
         List<Integer> available = new ArrayList<>();
         for (int i = 0; i < totalPieces; i++) {
@@ -107,16 +139,22 @@ public class PieceStorage {
         return available;
     }
 
+    /**
+     * Returns a copy of the buffer map (BitSet).
+     * @return the buffer map
+     */
     public synchronized BitSet getBufferMap() {
         return (BitSet) bufferMap.clone();
     }
 
     /**
-     * Mueve el archivo parcial a la carpeta de archivos completos.
+     * Finalizes the download by moving the partial file to the complete directory.
+     * @param finalFilename the final filename
+     * @throws IOException if download is incomplete or move fails
      */
     public synchronized void finalizeDownload(String finalFilename) throws IOException {
         if (!isComplete()) {
-            throw new IOException("No se puede finalizar descarga: el archivo está incompleto.");
+            throw new IOException("Cannot finalize download: file is incomplete.");
         }
 
         close();
@@ -131,19 +169,27 @@ public class PieceStorage {
                 }
             }
             if (!partFile.delete()) {
-                throw new IOException("No se pudo eliminar el archivo temporal: " + partFile.getPath());
+                throw new IOException("Could not delete temporary file: " + partFile.getPath());
             }
         }
 
         this.raf = new RandomAccessFile(completeFile, "r");
     }
 
+    /**
+     * Marks a piece as available without writing data (useful for resuming downloads).
+     * @param index the piece index
+     */
     public synchronized void markPiece(int index) {
         if (index >= 0 && index < totalPieces) {
             bufferMap.set(index);
         }
     }
 
+    /**
+     * Closes the RandomAccessFile.
+     * @throws IOException if close fails
+     */
     public synchronized void close() throws IOException {
         if (raf != null) {
             raf.close();

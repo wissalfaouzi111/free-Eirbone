@@ -35,14 +35,18 @@ class FileInfo
     }
 
     public void setLength(int length){
-        length = length;
+        this.length = length;
     }
 
     public void setPieceSize(int pieceSize){
         this.pieceSize = pieceSize;
     }
     public void setKey(String key){
-        Key = key;
+        this.key = key;
+    }
+
+    public int totalPieces() {
+        return (int) ((length + pieceSize - 1) / pieceSize);
     }
     
 }
