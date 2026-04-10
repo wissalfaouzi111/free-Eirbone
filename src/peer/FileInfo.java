@@ -32,7 +32,7 @@ class FileInfo
     }
 
     public int totalPieces() {
-        return (int) ((length + pieceSize - 1) / pieceSize);
+        return (int) ((length + Piece_size - 1) / Piece_size);
     }
 
 }
