@@ -133,24 +133,7 @@ Client *get_client(int fd) {
     return &g_clients.slots[fd];
 }
 
-int client_count(void) {
-    return g_clients.count;
-}
-
 int client_max_fd(void) {
-    return g_clients.max_fd;
-}
-
-int client_build_fdset(fd_set *set) {
-    if (set == NULL) {
-        return -1;
-    }
-
-    FD_ZERO(set);
-    for (int i = 0; i < g_clients.active_count; i++) {
-        FD_SET(g_clients.active_fds[i], set);
-    }
-
     return g_clients.max_fd;
 }
 
@@ -169,30 +152,6 @@ const char *client_get_ip(const Client *client) {
     }
 
     return client->ip;
-}
-
-int client_get_port(const Client *client) {
-    if (client == NULL) {
-        return -1;
-    }
-
-    return client->port;
-}
-
-int client_get_fd(const Client *client) {
-    if (client == NULL) {
-        return -1;
-    }
-
-    return client->fd;
-}
-
-int client_get_error_count(const Client *client) {
-    if (client == NULL) {
-        return -1;
-    }
-
-    return client->error_count;
 }
 
 void client_reset_error_count(Client *client) {
