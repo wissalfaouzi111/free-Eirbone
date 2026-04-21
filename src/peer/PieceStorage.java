@@ -1,3 +1,4 @@
+package peer;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -61,7 +62,7 @@ public class PieceStorage {
     /**
      * Writes a piece to the partial file at the correct offset and marks it as available.
      * @param index the piece index
-     * @param data the piece data (must be <= pieceSize)
+     * @param data the piece data (must be <= expected size for the piece)
      * @throws IOException if write fails
      * @throws IllegalArgumentException if index is out of range
      */
@@ -69,13 +70,15 @@ public class PieceStorage {
         if (index < 0 || index >= totalPieces) {
             throw new IllegalArgumentException("Piece index out of range: " + index);
         }
-        if (data.length > pieceSize) {
-            throw new IOException("Piece data size exceeds " + pieceSize + " bytes.");
+        int expectedSize = (index == totalPieces - 1) ? (int)(totalLength % pieceSize) : pieceSize;
+        if (expectedSize == 0) expectedSize = pieceSize;
+        if (data.length > expectedSize) {
+            throw new IOException("Piece data size exceeds " + expectedSize + " bytes.");
         }
 
         System.out.println("[PieceStorage] Writing piece " + index);
         raf.seek((long) index * pieceSize);
-        byte[] buffer = new byte[pieceSize];
+        byte[] buffer = new byte[expectedSize];
         System.arraycopy(data, 0, buffer, 0, data.length);
         raf.write(buffer);
         bufferMap.set(index);
@@ -96,11 +99,14 @@ public class PieceStorage {
             throw new IllegalArgumentException("Piece index out of range: " + index);
         }
 
+        int expectedSize = (index == totalPieces - 1) ? (int)(totalLength % pieceSize) : pieceSize;
+        if (expectedSize == 0) expectedSize = pieceSize; // Si divisible, última es pieceSize
+
         raf.seek((long) index * pieceSize);
-        byte[] piece = new byte[pieceSize];
+        byte[] piece = new byte[expectedSize];
         int read = raf.read(piece);
-        if (read != pieceSize) {
-            throw new IOException("Incomplete read of piece " + index + ", bytes read: " + read);
+        if (read != expectedSize) {
+            throw new IOException("Incomplete read of piece " + index + ", bytes read: " + read + ", expected: " + expectedSize);
         }
         return piece;
     }
