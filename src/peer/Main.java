@@ -11,21 +11,21 @@ public class Main {
     private static PeerState peerState;
 
     public static void main(String[] args) throws Exception {
-        // Crear directorios si no existen
+        // Create directories if they do not exist
         new File(DOWNLOADS_DIR).mkdirs();
         new File("data/incomplete").mkdirs();
         new File("data/complete").mkdirs();
 
-        // Cargar estado de archivos locales
+        // Load local file state
         peerState = createPeerStateFromDownloads();
 
-        // Iniciar servidor
+        // Start server
         Config config = new Config();
         config.listenPort = String.valueOf(SERVER_PORT);
         PeerServer server = new PeerServer(config, peerState);
         Thread serverThread = new Thread(() -> {
             try {
-                System.out.println("[SERVER] Iniciando servidor en puerto " + SERVER_PORT);
+                System.out.println("[SERVER] Starting server on port " + SERVER_PORT);
                 server.run();
             } catch (Exception e) {
                 System.out.println("[SERVER] Error: " + e.getMessage());
@@ -34,17 +34,17 @@ public class Main {
         serverThread.setDaemon(true);
         serverThread.start();
 
-        // Esperar un poco para que inicie
+        // Wait a bit for it to start
         Thread.sleep(1000);
 
         if (args.length >= 1 && args[0].equals("debug_download") && args.length == 4) {
-            // Modo debug descarga completa: debug_download <ip> <port> <key>
+            // Debug mode full download: debug_download <ip> <port> <key>
             String ip = args[1];
             int port = Integer.parseInt(args[2]);
             String key = args[3];
             runDebugDownload(ip, port, key);
         } else {
-            // Modo interactivo
+            // Interactive mode
             runInteractiveMode();
         }
     }
@@ -52,18 +52,18 @@ public class Main {
     private static void runInteractiveMode() {
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            System.out.println("\n=== MENU INTERACTIVO ===");
-            System.out.println("1. listen - Mostrar archivos servidos y escuchar conexiones");
-            System.out.println("2. download <ip> <port> <key> - Descargar archivo completo");
-            System.out.println("3. list - Listar archivos disponibles localmente");
-            System.out.println("4. exit - Salir");
-            System.out.print("Selecciona opción: ");
+            System.out.println("\n=== INTERACTIVE MENU ===");
+            System.out.println("1. listen - Show served files and listen for connections");
+            System.out.println("2. download <ip> <port> <key> - Download complete file");
+            System.out.println("3. list - List locally available files");
+            System.out.println("4. exit - Exit");
+            System.out.print("Select option: ");
             String input = scanner.nextLine().trim();
 
             if (input.equals("1") || input.startsWith("listen")) {
                 showServedFiles();
-                System.out.println("[INFO] Servidor escuchando en puerto " + SERVER_PORT + ". Presiona Ctrl+C para salir.");
-                // Quedarse escuchando (el servidor ya está corriendo)
+                System.out.println("[INFO] Server listening on port " + SERVER_PORT + ". Press Ctrl+C to exit.");
+                // Stay listening (server is already running)
                 try {
                     Thread.sleep(Long.MAX_VALUE);
                 } catch (InterruptedException e) {
@@ -78,30 +78,30 @@ public class Main {
                         String key = parts[3];
                         runDebugDownload(ip, port, key);
                     } catch (Exception e) {
-                        System.out.println("[ERROR] Formato inválido. Usa: download <ip> <port> <key>");
+                        System.out.println("[ERROR] Invalid format. Use: download <ip> <port> <key>");
                     }
                 } else {
-                    System.out.println("[ERROR] Usa: download <ip> <port> <key>");
+                    System.out.println("[ERROR] Use: download <ip> <port> <key>");
                 }
             } else if (input.equals("3") || input.startsWith("list")) {
                 listAvailableFiles();
             } else if (input.equals("4") || input.equals("exit")) {
                 break;
             } else {
-                System.out.println("[ERROR] Opción inválida.");
+                System.out.println("[ERROR] Invalid option.");
             }
         }
         scanner.close();
     }
 
     private static void showServedFiles() {
-        System.out.println("[INFO] Archivos siendo servidos:");
+        System.out.println("[INFO] Files being served:");
         for (DownloadState ds : peerState.downloads.values()) {
             FileInfo fi = ds.file;
-            System.out.println("- " + fi.getFilename() + " | key=" + fi.getKey() + " | piezas=" + fi.totalPieces() + " | completo=" + ds.isComplete());
+            System.out.println("- " + fi.getFilename() + " | key=" + fi.getKey() + " | pieces=" + fi.totalPieces() + " | complete=" + ds.isComplete());
         }
         if (peerState.downloads.isEmpty()) {
-            System.out.println("  (Ninguno)");
+            System.out.println("  (None)");
         }
     }
 
@@ -109,11 +109,11 @@ public class Main {
         File dir = new File(DOWNLOADS_DIR);
         File[] files = dir.listFiles();
         if (files == null || files.length == 0) {
-            System.out.println("[DEBUG] No hay archivos en " + DOWNLOADS_DIR);
+            System.out.println("[DEBUG] No files in " + DOWNLOADS_DIR);
             return;
         }
 
-        System.out.println("[DEBUG] Archivos disponibles:");
+        System.out.println("[DEBUG] Available files:");
         for (File file : files) {
             if (file.isFile()) {
                 try {
@@ -129,29 +129,29 @@ public class Main {
     }
 
     private static void runDebugDownload(String ip, int port, String key) throws IOException {
-        System.out.println("[CLIENT] Conectando a " + ip + ":" + port + " para key=" + key);
+        System.out.println("[CLIENT] Connecting to " + ip + ":" + port + " for key=" + key);
 
         try (Socket socket = new Socket(ip, port);
              BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
              PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
 
-            // Enviar interested
+            // Send interested
             writer.println("interested " + key);
-            System.out.println("[CLIENT] Enviado: interested " + key);
+            System.out.println("[CLIENT] Sent: interested " + key);
 
-            // Recibir have
+            // Receive have
             String response = reader.readLine();
-            System.out.println("[CLIENT] Recibido: " + response);
+            System.out.println("[CLIENT] Received: " + response);
             if (!response.startsWith("have " + key + " ")) {
-                System.out.println("[CLIENT] Respuesta inesperada");
+                System.out.println("[CLIENT] Unexpected response");
                 return;
             }
 
             String base64 = response.substring(("have " + key + " ").length());
-            BitSet remoteBufferMap = decodeBufferMap(base64, 10000); // Asumir max piezas
-            System.out.println("[CLIENT] BufferMap remoto: " + remoteBufferMap.cardinality() + " piezas disponibles");
+            BitSet remoteBufferMap = decodeBufferMap(base64, 10000); // Assume max pieces
+            System.out.println("[CLIENT] Remote BufferMap: " + remoteBufferMap.cardinality() + " pieces available");
 
-            // Solicitar todas las piezas disponibles
+            // Request all available pieces
             List<Integer> toRequest = new ArrayList<>();
             for (int i = 0; i < remoteBufferMap.length(); i++) {
                 if (remoteBufferMap.get(i)) {
@@ -160,11 +160,11 @@ public class Main {
             }
 
             if (toRequest.isEmpty()) {
-                System.out.println("[CLIENT] No hay piezas disponibles");
+                System.out.println("[CLIENT] No pieces available");
                 return;
             }
 
-            // Enviar getpieces
+            // Send getpieces
             StringBuilder sb = new StringBuilder("getpieces " + key + " [");
             for (int i = 0; i < toRequest.size(); i++) {
                 if (i > 0) sb.append(" ");
@@ -172,25 +172,25 @@ public class Main {
             }
             sb.append("]");
             writer.println(sb.toString());
-            System.out.println("[CLIENT] Enviado: getpieces con " + toRequest.size() + " piezas");
+            System.out.println("[CLIENT] Sent: getpieces with " + toRequest.size() + " pieces");
 
-            // Recibir data header
+            // Receive data header
             String dataHeader = reader.readLine();
-            System.out.println("[CLIENT] Recibido header: " + dataHeader);
+            System.out.println("[CLIENT] Received header: " + dataHeader);
 
-            // Parsear header para obtener lista de (idx, size)
+            // Parse header to get list of (idx, size)
             List<int[]> piecesInfo = parseDataHeader(dataHeader, key);
             if (piecesInfo.isEmpty()) {
-                System.out.println("[CLIENT] Header inválido");
+                System.out.println("[CLIENT] Invalid header");
                 return;
             }
 
-            // Crear DownloadState para el archivo
+            // Create DownloadState for the file
             int totalSize = piecesInfo.stream().mapToInt(p -> p[1]).sum();
             FileInfo fileInfo = new FileInfo("downloaded_" + key, totalSize, 1024, key);
             DownloadState ds = new DownloadState(fileInfo);
 
-            // Leer y escribir cada pieza
+            // Read and write each piece
             InputStream in = socket.getInputStream();
             for (int[] piece : piecesInfo) {
                 int idx = piece[0];
@@ -199,31 +199,31 @@ public class Main {
                 int read = in.read(data);
                 if (read == size) {
                     ds.writePiece(idx, data);
-                    System.out.println("[CLIENT] Escrita pieza " + idx + " (" + size + " bytes)");
+                    System.out.println("[CLIENT] Written piece " + idx + " (" + size + " bytes)");
                 } else {
-                    System.out.println("[CLIENT] Error leyendo pieza " + idx + ", bytes leídos: " + read);
+                    System.out.println("[CLIENT] Error reading piece " + idx + ", bytes read: " + read);
                 }
             }
 
-            // Verificar si está completo
+            // Check if complete
             if (ds.isComplete()) {
                 ds.getStorage().finalizeDownload("downloaded_" + key + ".complete");
-                System.out.println("[CLIENT] Descarga completada y archivo finalizado en data/complete/");
+                System.out.println("[CLIENT] Download completed and file finalized in data/complete/");
             } else {
-                System.out.println("[CLIENT] Descarga parcial completada (" + ds.getBufferMap().cardinality() + "/" + fileInfo.totalPieces() + " piezas)");
+                System.out.println("[CLIENT] Partial download completed (" + ds.getBufferMap().cardinality() + "/" + fileInfo.totalPieces() + " pieces)");
             }
         }
     }
 
     private static List<int[]> parseDataHeader(String header, String expectedKey) {
         List<int[]> pieces = new ArrayList<>();
-        // Formato: data <key> [<idx> <size> ...]
+        // Format: data <key> [<idx> <size> ...]
         String[] parts = header.split("\\s+");
         if (parts.length < 3 || !parts[0].equals("data") || !parts[1].equals(expectedKey)) {
             return pieces;
         }
 
-        // Encontrar [ y ]
+        // Find [ and ]
         int start = header.indexOf('[');
         int end = header.lastIndexOf(']');
         if (start == -1 || end == -1 || end <= start) {
@@ -239,7 +239,7 @@ public class Main {
                     int size = Integer.parseInt(tokens[i + 1]);
                     pieces.add(new int[]{idx, size});
                 } catch (NumberFormatException e) {
-                    // Ignorar
+                    // Ignore
                 }
             }
         }
@@ -257,7 +257,7 @@ public class Main {
                     FileMetadata meta = chunker.getMetadata();
                     FileInfo fileInfo = new FileInfo(meta.getFilename(), meta.getLength(), meta.getPieceSize(), meta.getKey());
                     DownloadState ds = new DownloadState(fileInfo);
-                    // Marcar todas piezas como disponibles
+                    // Mark all pieces as available
                     for (int i = 0; i < fileInfo.totalPieces(); i++) {
                         ds.markPiece(i);
                     }
