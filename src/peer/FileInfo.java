@@ -2,9 +2,9 @@
 class FileInfo
 {
 
-    String Filename;
+    String filename;
     long length;
-    int Piece_size;
+    int pieceSize;
     String key;
 
     public FileInfo(String name, long length, int pieceSize, String key){
@@ -18,23 +18,28 @@ class FileInfo
         return filename;
     }
 
-    public FileInfo(String name, long length, int pieceSize, String key){
-        this.Filename = name;
-        this.length = length;
-        this.Piece_size = pieceSize;
-        this.key = key;
+    public long getLength() {
+        return length;
+    }
+
+    public int getPieceSize() {
+        return pieceSize;
+    }
+
+    public String getKey() {
+        return key;
     }
     
     public void setFilename(String filename) {
-        this.Filename = filename;
+        this.filename = filename;
     }
 
-    public void setLength(int length){
+    public void setLength(long length){
         this.length = length;
     }
 
-    public void setPieceSize(int PieceSize){
-        this.Piece_size = PieceSize;
+    public void setPieceSize(int pieceSize){
+        this.pieceSize = pieceSize;
     }
 
     public void setKey(String key){
@@ -42,7 +47,7 @@ class FileInfo
     }
 
     public int totalPieces() {
-        return (int) ((length + Piece_size - 1) / Piece_size);
+        return (int) ((length + pieceSize - 1) / pieceSize);
     }
 
 }

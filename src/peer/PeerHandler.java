@@ -11,27 +11,30 @@ public class PeerHandler implements Runnable {
     private PrintWriter writer;
     private OutputStream rawOut; //envoie les bytes exactement tels quels 
 
-    public PeerHandler(Socket socket, PeerState state) {
+    public PeerHandler(Socket socket, PeerState state) throws IOException {
         this.socket = socket;
         this.state  = state;
-    }
-
-    public void run() {
         reader =  new BufferedReader ( new InputStreamReader (this.socket. getInputStream ()));
         writer = new PrintWriter(
                 new BufferedWriter(
                     new OutputStreamWriter(socket.getOutputStream())), true);
         rawOut = socket.getOutputStream(); 
-        
+    }
+
+    public void run() {
         String line;
-        while ((line = reader.readLine()) != null) {
-            if (line.startsWith("interested")) {
-                handleInterested(line);
-            } else if (line.startsWith("getpieces")) {
-                handleGetpieces(line);
-            } else if (line.startsWith("have")) {
-                handleHave(line);
+        try {
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("interested")) {
+                    handleInterested(line);
+                } else if (line.startsWith("getpieces")) {
+                    handleGetpieces(line);
+                } else if (line.startsWith("have")) {
+                    handleHave(line);
+                }
             }
+        } catch (IOException e) {
+            System.out.println("[PeerHandler] Error: " + e.getMessage());
         }
     }
 

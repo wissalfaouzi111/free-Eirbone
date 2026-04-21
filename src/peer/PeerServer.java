@@ -1,7 +1,7 @@
 import java.io.*;
 import java.net.*;
 
-public Class PeerServer{
+public class PeerServer{
     private PeerState state;
     private Config config;
 
@@ -10,7 +10,7 @@ public Class PeerServer{
         this.config = config;
         this.state  = state;
     }
-    public void run() {
+    public void run() throws IOException {
         ServerSocket serverSocket = new ServerSocket(
             Integer.parseInt(config.listenPort));
         
