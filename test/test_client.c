@@ -5,44 +5,43 @@
 #include "../src/tracker/client.h"
 
 int main(void) {
-    ClientTable table;
     fd_set set;
 
-    client_table_init(&table);
-    assert(client_table_count(&table) == 0);
-    assert(client_table_max_fd(&table) == -1);
+    client_system_init();
+    assert(client_count() == 0);
+    assert(client_max_fd() == -1);
 
-    assert(client_table_add(&table, 3, "127.0.0.1", 6881) == 0);
-    assert(client_table_add(&table, 5, "10.0.0.2", 6882) == 0);
-    assert(client_table_add(&table, 7, "192.168.1.3", 6883) == 0);
+    assert(create_client(3, "127.0.0.1", 6881) != NULL);
+    assert(create_client(5, "10.0.0.2", 6882) != NULL);
+    assert(create_client(7, "192.168.1.3", 6883) != NULL);
 
-    assert(client_table_count(&table) == 3);
-    assert(client_table_max_fd(&table) == 7);
+    assert(client_count() == 3);
+    assert(client_max_fd() == 7);
 
-    Client *c5 = client_table_get(&table, 5);
+    Client *c5 = get_client(5);
     assert(c5 != NULL);
-    assert(strcmp(c5->ip, "10.0.0.2") == 0);
-    assert(c5->port == 6882);
+    assert(strcmp(client_get_ip(c5), "10.0.0.2") == 0);
+    assert(client_get_port(c5) == 6882);
 
-    assert(client_table_build_fdset(&table, &set) == 7);
+    assert(client_build_fdset(&set) == 7);
     assert(FD_ISSET(3, &set));
     assert(FD_ISSET(5, &set));
     assert(FD_ISSET(7, &set));
     assert(!FD_ISSET(4, &set));
 
-    assert(client_table_add(&table, 5, "1.2.3.4", 6000) == -1);
-    assert(client_table_add(&table, -1, "1.2.3.4", 6000) == -1);
-    assert(client_table_add(&table, FD_SETSIZE, "1.2.3.4", 6000) == -1);
+    assert(create_client(5, "1.2.3.4", 6000) == NULL);
+    assert(create_client(-1, "1.2.3.4", 6000) == NULL);
+    assert(create_client(FD_SETSIZE, "1.2.3.4", 6000) == NULL);
 
-    client_table_remove(&table, 7);
-    assert(client_table_count(&table) == 2);
-    assert(client_table_max_fd(&table) == 5);
+    remove_client(7);
+    assert(client_count() == 2);
+    assert(client_max_fd() == 5);
 
-    client_table_remove(&table, 5);
-    client_table_remove(&table, 3);
-    assert(client_table_count(&table) == 0);
-    assert(client_table_max_fd(&table) == -1);
-    assert(client_table_get(&table, 3) == NULL);
+    remove_client(5);
+    remove_client(3);
+    assert(client_count() == 0);
+    assert(client_max_fd() == -1);
+    assert(get_client(3) == NULL);
 
     printf("✅ TOUS LES TESTS CLIENT REUSSIS\n\n");
     return 0;

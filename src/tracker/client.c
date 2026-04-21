@@ -1,73 +1,91 @@
+#include <stddef.h>
 #include <string.h>
 #include "client.h"
+
+#define CLIENT_BUFFER_SIZE 4096
+
+struct Client {
+    int fd;
+    char ip[TAILLE_IP];
+    int port;
+    int active;
+    int error_count;
+    char in_buffer[CLIENT_BUFFER_SIZE];
+    size_t in_len;
+};
+
+typedef struct {
+    Client slots[FD_SETSIZE];
+    int count;
+    int max_fd;
+} ClientTable;
+
+static ClientTable g_clients;
 
 static int is_valid_fd(int fd) {
     return fd >= 0 && fd < FD_SETSIZE;
 }
 
-static void recompute_max_fd(ClientTable *table) {
-    table->max_fd = -1;
+static void recompute_max_fd(void) {
+    g_clients.max_fd = -1;
 
     for (int fd = FD_SETSIZE - 1; fd >= 0; fd--) {
-        if (table->slots[fd].active) {
-            table->max_fd = fd;
+        if (g_clients.slots[fd].active) {
+            g_clients.max_fd = fd;
             break;
         }
     }
 }
 
-void client_table_init(ClientTable *table) {
-    if (table == NULL) {
-        return;
-    }
-
-    memset(table, 0, sizeof(*table));
-    table->max_fd = -1;
+void client_system_init(void) {
+    memset(&g_clients, 0, sizeof(g_clients));
+    g_clients.max_fd = -1;
 
     for (int fd = 0; fd < FD_SETSIZE; fd++) {
-        table->slots[fd].fd = -1;
+        g_clients.slots[fd].fd = -1;
     }
 }
 
-int client_table_add(ClientTable *table, int fd, const char *ip, int port) {
-    if (table == NULL || ip == NULL) {
-        return -1;
+Client *create_client(int fd, const char *ip, int port) {
+    if (ip == NULL) {
+        return NULL;
     }
     if (!is_valid_fd(fd)) {
-        return -1;
+        return NULL;
     }
-    if (table->slots[fd].active) {
-        return -1;
+    if (g_clients.slots[fd].active) {
+        return NULL;
     }
     if (strlen(ip) >= TAILLE_IP) {
-        return -1;
+        return NULL;
     }
     if (port <= 0 || port > 65535) {
-        return -1;
+        return NULL;
     }
 
-    Client *client = &table->slots[fd];
+    Client *client = &g_clients.slots[fd];
     client->fd = fd;
     strcpy(client->ip, ip);
     client->port = port;
     client->active = 1;
+    client->error_count = 0;
     client->in_len = 0;
     client->in_buffer[0] = '\0';
 
-    table->count++;
-    if (fd > table->max_fd) {
-        table->max_fd = fd;
+    g_clients.count++;
+    if (fd > g_clients.max_fd) {
+        g_clients.max_fd = fd;
     }
 
-    return 0;
+    return client;
 }
 
-void client_table_remove(ClientTable *table, int fd) {
-    if (table == NULL || !is_valid_fd(fd)) {
+void remove_client(int fd) {
+    if (!is_valid_fd(fd)) {
         return;
     }
 
-    Client *client = &table->slots[fd];
+    Client *client = &g_clients.slots[fd];
     if (!client->active) {
         return;
     }
@@ -76,55 +94,97 @@ void client_table_remove(ClientTable *table, int fd) {
     client->fd = -1;
     client->ip[0] = '\0';
     client->port = 0;
+    client->error_count = 0;
     client->in_len = 0;
     client->in_buffer[0] = '\0';
 
-    table->count--;
+    g_clients.count--;
 
-    if (fd == table->max_fd) {
-        recompute_max_fd(table);
+    if (fd == g_clients.max_fd) {
+        recompute_max_fd();
     }
 }
 
-Client *client_table_get(ClientTable *table, int fd) {
-    if (table == NULL || !is_valid_fd(fd)) {
+Client *get_client(int fd) {
+    if (!is_valid_fd(fd)) {
         return NULL;
     }
 
-    if (!table->slots[fd].active) {
+    if (!g_clients.slots[fd].active) {
         return NULL;
     }
 
-    return &table->slots[fd];
+    return &g_clients.slots[fd];
 }
 
-int client_table_count(const ClientTable *table) {
-    if (table == NULL) {
-        return 0;
-    }
-
-    return table->count;
+int client_count(void) {
+    return g_clients.count;
 }
 
-int client_table_max_fd(const ClientTable *table) {
-    if (table == NULL) {
-        return -1;
-    }
-
-    return table->max_fd;
+int client_max_fd(void) {
+    return g_clients.max_fd;
 }
 
-int client_table_build_fdset(const ClientTable *table, fd_set *set) {
-    if (table == NULL || set == NULL) {
+int client_build_fdset(fd_set *set) {
+    if (set == NULL) {
         return -1;
     }
 
     FD_ZERO(set);
     for (int fd = 0; fd < FD_SETSIZE; fd++) {
-        if (table->slots[fd].active) {
+        if (g_clients.slots[fd].active) {
             FD_SET(fd, set);
         }
     }
 
-    return table->max_fd;
+    return g_clients.max_fd;
+}
+
+const char *client_get_ip(const Client *client) {
+    if (client == NULL) {
+        return NULL;
+    }
+
+    return client->ip;
+}
+
+int client_get_port(const Client *client) {
+    if (client == NULL) {
+        return -1;
+    }
+
+    return client->port;
+}
+
+int client_get_fd(const Client *client) {
+    if (client == NULL) {
+        return -1;
+    }
+
+    return client->fd;
+}
+
+int client_get_error_count(const Client *client) {
+    if (client == NULL) {
+        return -1;
+    }
+
+    return client->error_count;
+}
+
+void client_reset_error_count(Client *client) {
+    if (client == NULL) {
+        return;
+    }
+
+    client->error_count = 0;
+}
+
+int client_inc_error_count(Client *client) {
+    if (client == NULL) {
+        return -1;
+    }
+
+    client->error_count++;
+    return client->error_count;
 }

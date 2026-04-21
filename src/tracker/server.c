@@ -9,6 +9,7 @@
 #include <string.h>
 #include "message.h" 
 #include "file.h"
+#include "client.h"
 #define MAX_OUTPUT 1024
 
 // pour gerer le ctrl+C et liberer le port
@@ -29,12 +30,12 @@ void error(char *msg){
     exit(1);
 }
 
-void announce(MessageP2P *msg, char *client_ip) {
+void announce(MessageP2P *msg, Client *client) {
     if (msg == NULL) return;
     for (int i = 0; i < msg->nb_seed; i++) {
         FichierInfo *fichier = creer_fichier_info(msg->liste_seed[i].nom, msg->liste_seed[i].taille, msg->liste_seed[i].taille_piece, msg->liste_seed[i].cle_md5);
         if (fichier != NULL) {
-            Peer *peer = creer_peer(client_ip, msg->port); 
+            Peer *peer = creer_peer(client_get_ip(client), msg->port);
             if (peer != NULL) {
                 add_peer_to_file(fichier->cle_md5, peer);
             }
@@ -62,13 +63,13 @@ char* look(MessageP2P *msg) {
     return output;
 }
 
-void update_tracker(MessageP2P *msg, char *client_ip) {
+void update_tracker(MessageP2P *msg, Client *client) {
     if (msg == NULL) return;
     
-    Peer *peer = trouver_peer_par_ip(client_ip);
+    Peer *peer = trouver_peer_par_ip(client_get_ip(client));
     if (peer == NULL) {
         // Fallback si le pair fait un update avant un announce
-        peer = creer_peer(client_ip, 6881); 
+        peer = creer_peer(client_get_ip(client), 6881);
     }
     
     for (int i = 0; i < msg->nb_seed; i++) {
@@ -80,18 +81,18 @@ void update_tracker(MessageP2P *msg, char *client_ip) {
     }
 }
 
-int answer(MessageP2P *msg, char *response, char *client_ip) {
+int answer(MessageP2P *msg, char *response, Client *client) {
     int is_error = 0;
     if (msg == NULL || msg->commande[0] == '\0') {
         sprintf(response, "ERROR Invalid format\n");
         is_error = 1;
     }
     else if (strcmp(msg->commande, "announce") == 0) {
-        announce(msg, client_ip);
+        announce(msg, client);
         sprintf(response, "ok\n");
     }
     else if (strcmp(msg->commande, "update") == 0) {
-        update_tracker(msg, client_ip);
+        update_tracker(msg, client);
         sprintf(response, "ok\n"); 
     }
     else if (strcmp(msg->commande, "look") == 0) {
@@ -120,79 +121,100 @@ int answer(MessageP2P *msg, char *response, char *client_ip) {
     return is_error;
 }
 
-void handle_client(int newsockfd, struct sockaddr_in *cli_addr) {
+static void close_client_connection(int client_fd, fd_set *master_set) {
+    remove_client(client_fd);
+    close(client_fd);
+    FD_CLR(client_fd, master_set);
+}
+
+static void accept_new_client(fd_set *master_set) {
+    int newsockfd;
+    socklen_t cli_socket_len;
+    struct sockaddr_in cli_addr;
+
+    cli_socket_len = sizeof(cli_addr);
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_socket_len);
+    if (newsockfd < 0) {
+        return;
+    }
+
+    if (create_client(newsockfd, inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port)) == NULL) {
+        close(newsockfd);
+        return;
+    }
+
+    FD_SET(newsockfd, master_set);
+    printf("Connexion acceptée de %s\n", client_get_ip(get_client(newsockfd)));
+}
+
+static void handle_ready_client(int client_fd, fd_set *master_set) {
     char buffer[BUFLEN];
     char response[MAX_OUTPUT];
-    int error_count = 0;
     int n;
-    
-    char *client_ip = inet_ntoa(cli_addr->sin_addr);
-    printf("Connexion acceptée de %s\n", client_ip);
+    int should_close_after_send = 0;
 
-    // Keep-alive et coupure après 3 erreurs
-    while (error_count < 3) {
-        bzero(buffer, BUFLEN);
-
-        // printf("=> read() ? ...");
-        // getchar(); 
-        // printf("OK\n");
-
-        n = read(newsockfd, buffer, BUFLEN - 1); //on a modifié la taille de buffer lu(10)
-        // if (n < 0) {
-        //     error("ERROR reading from socket");
-        //     close(newsockfd);
-        //     continue; // Passer à la prochaine connexion
-        // }
-        
-        if (n <= 0) {
-            printf("Le client %s s'est déconnecté.\n", client_ip);
-            break; // Déconnexion propre ou erreur réseau
-        }
-        printf("[%s] Recu (%d octets): %.*s\n", client_ip, n, n, buffer);
-
-        // printf("=> write() ? ...");
-        // getchar(); 
-        // printf("OK\n");
-
-        // n = write(newsockfd, "I got your message",18);
-        // if (n < 0) error("ERROR writing to socket");
-        
-        MessageP2P *msg = add_message(buffer);
-        if (msg != NULL && msg->commande[0] != '\0') {
-            printf("[%s] Commande detectee: %s\n", client_ip, msg->commande);
-        } else {
-            printf("[%s] Commande detectee: <invalide>\n", client_ip);
-        }
-        bzero(response, BUFLEN);
-        int is_error = 0;
-
-        is_error = answer(msg, response, client_ip);
-
-        if (is_error) {
-            error_count++;
-            printf("Erreur de formatage (%d/3)\n", error_count);
-        } else {
-            error_count = 0; // Remise à zéro si message valide
-        }
-
-        printf("[%s] Reponse envoyee: %s", client_ip, response);
-
-        write(newsockfd, response, strlen(response));
-        if (msg != NULL) free(msg);
+    Client *client = get_client(client_fd);
+    if (client == NULL) {
+        close(client_fd);
+        FD_CLR(client_fd, master_set);
+        return;
     }
-    
-    if (error_count >= 3) {
-        printf("Déconnexion forcée de %s : 3 erreurs successives.\n", client_ip);
+
+    // On traite un seul message par passage select pour ne pas bloquer les autres clients.
+    bzero(buffer, BUFLEN);
+    n = read(client_fd, buffer, BUFLEN - 1);
+
+    if (n <= 0) {
+        printf("Le client %s s'est déconnecté.\n", client_get_ip(client));
+        close_client_connection(client_fd, master_set);
+        return;
     }
-    close(newsockfd);
+
+    printf("[%s] Recu (%d octets): %.*s\n", client_get_ip(client), n, n, buffer);
+
+    MessageP2P *msg = add_message(buffer);
+    if (msg != NULL && msg->commande[0] != '\0') {
+        printf("[%s] Commande detectee: %s\n", client_get_ip(client), msg->commande);
+    } else {
+        printf("[%s] Commande detectee: <invalide>\n", client_get_ip(client));
+    }
+
+    bzero(response, BUFLEN);
+    int is_error = answer(msg, response, client);
+
+    if (is_error) {
+        int count = client_inc_error_count(client);
+        printf("Erreur de formatage (%d/3)\n", count);
+        if (count >= 3) {
+            printf("Déconnexion forcée de %s : 3 erreurs successives.\n", client_get_ip(client));
+            should_close_after_send = 1;
+        }
+    } else {
+        client_reset_error_count(client);
+    }
+
+    printf("[%s] Reponse envoyee: %s", client_get_ip(client), response);
+    write(client_fd, response, strlen(response));
+
+    if (msg != NULL) {
+        free(msg);
+    }
+
+    if (should_close_after_send) {
+        close_client_connection(client_fd, master_set);
+    }
 }
 
 
 
 int main(int argc, char *argv[]){
-    int newsockfd, portno;
-    socklen_t cli_socket_len;
-    struct sockaddr_in serv_addr, cli_addr;
+    int portno;
+    int current_max_fd;
+    int max_fd;
+    fd_set master_set, read_set;
+    struct sockaddr_in serv_addr;
+
+    client_system_init();
 
     if (argc < 2) {
         fprintf(stderr,"usage: %s <port>\n", argv[0]);
@@ -202,11 +224,8 @@ int main(int argc, char *argv[]){
 
     if (sockfd < 0) error("ERROR opening socket");
 
-
-    // Intercepter le Ctrl+C 
     signal(SIGINT, handle_sigint);
 
-    // Forcer la réutilisation du port 
     int opt = 1;
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
         error("ERROR setsockopt");
@@ -217,29 +236,45 @@ int main(int argc, char *argv[]){
     portno = atoi(argv[1]);
 
     serv_addr.sin_family = AF_INET;
-    //serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    inet_pton(AF_INET, "0.0.0.0", &serv_addr.sin_addr.s_addr);// On a remplacer 127.0.0.1 par 0.0.0.0 pour que le serveur puisse accepter les connexions de n'importe quelle adresse IP
+
+    inet_pton(AF_INET, "0.0.0.0", &serv_addr.sin_addr.s_addr);
     serv_addr.sin_port = htons(portno);
 
     if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) error("ERROR on bind()");
 
-    // printf("=> listen() ? ...");
-    // getchar(); 
-    // printf("OK\n");
 
     printf("=> Serveur en écoute sur le port %d...\n", portno);
     listen(sockfd, 5);
 
-    // printf("=> accept() ? ...");
-    // getchar(); 
-    // printf("OK\n");
+    FD_ZERO(&master_set);
+    FD_SET(sockfd, &master_set);
+    max_fd = sockfd;
 
-    while (1) { // Boucle pour accepter plusieurs connexions successives
-        cli_socket_len = sizeof(cli_addr);
-        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_socket_len);
-        if (newsockfd < 0) continue;
+    while (1) {
+        read_set = master_set;
 
-        handle_client(newsockfd, &cli_addr);
+        current_max_fd = client_max_fd();
+        max_fd = sockfd;
+        if (current_max_fd > max_fd) {
+            max_fd = current_max_fd;
+        }
+
+        if (select(max_fd + 1, &read_set, NULL, NULL, NULL) < 0) {
+            continue;
+        }
+
+        if (FD_ISSET(sockfd, &read_set)) {
+            accept_new_client(&master_set);
+        }
+
+        for (int fd = 0; fd <= max_fd; fd++) {
+            if (fd == sockfd) {
+                continue;
+            }
+            if (FD_ISSET(fd, &read_set)) {
+                handle_ready_client(fd, &master_set);
+            }
+        }
     }
     close(sockfd);
 
