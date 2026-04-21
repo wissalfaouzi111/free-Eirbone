@@ -137,6 +137,8 @@ Les requêtes texte implémentées sur le tracker suivent un formatage précis (
 \begin{itemize}
     \item \textbf{announce} : enregistrement d'un pair et de ses fichiers complets ou en cours de téléchargement.
     \item \textbf{look} : recherche de fichiers par nom.
+    \item \textbf{update} : mise à jour périodique de l'état des téléchargements d'un pair (nouveaux fichiers possédés ou en cours de leech).
+    \item \textbf{getfile} : interrogation du Tracker pour obtenir la liste des pairs (IP et port) possédant un fichier spécifique à partir de sa clé MD5.
 \end{itemize}
 
 \subsection{Communication Peer-Peer}
@@ -160,18 +162,29 @@ Le serveur repose sur des Sockets TCP (\texttt{AF\_INET}, \texttt{SOCK\_STREAM})
 \end{itemize}
 
 \subsection{Parsing et Programmation Défensive}
-La lecture des commandes utilise `strtok` pour isoler les chaînes. Le parseur est conçu de manière défensive :
+La lecture des commandes utilise \texttt{strtok} pour isoler les chaînes. Le parseur est conçu de manière défensive :
 \begin{itemize}
     \item Vérification de la conversion de chaînes en entiers (\texttt{is\_number}).
     \item Détection des erreurs de formatage (crochets manquants, listes incomplètes).
     \item \textbf{Rollback :} En cas de détection d'une anomalie au milieu de l'analyse d'une liste de fichiers, le compteur d'éléments est réinitialisé à son état d'origine pour éviter la corruption de la structure de données \texttt{MessageP2P}.
 \end{itemize}
 
-\subsection{Tests automatisés}
-Une méthodologie de validation par tests a été intégrée via le `Makefile` :
+\subsection{Optimisation Algorithmique : Double Indexation}
+Initialement, la recherche d'un fichier par son nom (commande \texttt{look}) ou par sa clé MD5 (commande \texttt{getfile}) dans une structure linéaire nécessitait un parcours complet, induisant une complexité algorithmique de $O(N)$. 
+
+Pour garantir des temps de réponse instantanés même avec un grand nombre de fichiers partagés sur le réseau, une architecture à \textbf{double indexation} a été mise en place :
 \begin{itemize}
-    \item \textbf{Tests unitaires :} Validation locale du module de parsing, du registre des fichiers et de la base des pairs via `assert.h`. Ils injectent des trames réseau invalides pour s'assurer que le serveur n'entre pas en erreur fatale (Segmentation Fault).
-    \item \textbf{Tests d'intégration :} Le Makefile lance le binaire du tracker en arrière-plan, compile et exécute un client fictif en C qui lui soumet un scénario complet, analyse la réponse du serveur (`> ok` ou `list [...]`), puis termine le processus serveur.
+    \item Une seule instance des informations d'un fichier (\texttt{FichierTracker}) est allouée en mémoire centrale.
+    \item Deux tables de hachage distinctes pointent vers cette même instance : l'une utilisant le nom du fichier comme clé d'indexation, et l'autre utilisant le hash MD5.
+    \item La fonction de hachage utilisée est l'algorithme \textbf{DJB2}, réputé pour sa rapidité d'exécution et sa faible probabilité de collision.
+\end{itemize}
+Cette conception permet d'atteindre une complexité en temps constant \textbf{$O(1)$} pour toutes les requêtes de recherche, sans pour autant dupliquer les données en mémoire.
+
+\subsection{Tests automatisés}
+Une méthodologie de validation par tests a été intégrée via le \texttt{Makefile} :
+\begin{itemize}
+    \item \textbf{Tests unitaires :} Validation locale du module de parsing, du registre des fichiers et de la base des pairs via \texttt{assert.h}. Ils injectent des trames réseau invalides pour s'assurer que le serveur n'entre pas en erreur fatale (Segmentation Fault).
+    \item \textbf{Tests d'intégration :} Le Makefile lance le binaire du tracker en arrière-plan, compile et exécute un client fictif en C qui lui soumet un scénario complet, analyse la réponse du serveur (\texttt{> ok} ou \texttt{list [...]}), puis termine le processus serveur.
 \end{itemize}
 
 \section{Implémentation du Peer (Java)}
@@ -183,14 +196,15 @@ Une méthodologie de validation par tests a été intégrée via le `Makefile` :
     \item \textbf{Langages :} C pour le Tracker (performances, bas niveau) et Java pour le Peer (programmation orientée objet, portabilité).
     \item \textbf{Protocole Transport :} TCP pour garantir l'ordre et l'intégrité des données échangées.
     \item \textbf{Identification :} Hachage cryptographique MD5 pour associer une empreinte unique à chaque fichier.
-    \item \textbf{Build System :} `Makefile` pour l'automatisation de la compilation croisée (C/Java) et l'exécution de la chaîne de tests.
+    \item \textbf{Build System :} \texttt{Makefile} pour l'automatisation de la compilation croisée (C/Java) et l'exécution de la chaîne de tests.
 \end{itemize}
 
 \section{Travail réalisé à ce stade}
 \begin{itemize}
     \item Architecture de la gestion de projet (Jira, Story Points).
     \item Implémentation du serveur Tracker (TCP, Keep-Alive).
-    \item Parsing sécurisé des commandes `announce` et `look`.
+    \item Parsing sécurisé des commandes \texttt{announce}, \texttt{look}, \texttt{update} et \texttt{getfile}.
+    \item Optimisation des structures de données (Tables de hachage, Double indexation $O(1)$).
     \item Moteur de tests unitaires et d'intégration fonctionnel.
     \item (Peer) Implémentation du serveur peer et gestion des commandes réseau.
     \item (Peer) Découpage des fichiers et encodage du buffermap en Base64.
@@ -205,7 +219,7 @@ Une méthodologie de validation par tests a été intégrée via le `Makefile` :
 
 \section{Travail restant}
 \begin{itemize}
-    \item Implémentation du multiplexage I/O (`select`) sur le Tracker pour remplacer le traitement séquentiel actuel des clients.
+    \item Implémentation du multiplexage I/O (\texttt{select}) sur le Tracker pour remplacer le traitement séquentiel actuel des clients.
     \item Optimisation du téléchargement P2P (logique Leecher/Seeder avancée).
     \item Intégration du serveur HTTP embarqué pour l'interface graphique.
     \item Tests finaux de déploiement multisites sur l'infrastructure réseau de l'école (gestion des pare-feux).

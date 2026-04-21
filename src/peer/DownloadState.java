@@ -1,43 +1,26 @@
 import java.io.File;
-import java.io.IOException;
 import java.util.BitSet;
 
 public class DownloadState {
     FileInfo file;
-    File localFile; // chemin réel sur disque
-    PieceStorage storage;
+    File localFile; //chemin réel sur disque
+    BitSet localBufferMap;
 
-    public DownloadState(FileInfo file, File localFile) throws IOException {
+    public DownloadState(FileInfo file, File localFile) {
         this.file = file;
         this.localFile = localFile;
-        this.storage = new PieceStorage(file);
-    }
-
-    public void writePiece(int index, byte[] data) throws IOException {
-        storage.writePiece(index, data);
-    }
-
-    public byte[] readPiece(int index) throws IOException {
-        return storage.readPiece(index);
+        this.localBufferMap = new BitSet(file.totalPieces());
     }
 
     public void markPiece(int i) {
-        storage.markPiece(i);
+        localBufferMap.set(i);
     }
 
     public boolean hasPiece(int index) {
-        return storage.hasPiece(index);
+        return localBufferMap.get(index);
     }
 
     public boolean isComplete() {
-        return storage.isComplete();
-    }
-
-    public BitSet getBufferMap() {
-        return storage.getBufferMap();
-    }
-
-    public PieceStorage getStorage() {
-        return storage;
+        return localBufferMap.cardinality() == file.totalPieces();
     }
 }
