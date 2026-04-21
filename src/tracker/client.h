@@ -20,6 +20,8 @@ int client_max_fd(void);
 
 int client_build_fdset(fd_set *set);
 
+int client_list_fds(const int **fds);
+
 const char *client_get_ip(const Client *client);
 
 int client_get_port(const Client *client);

@@ -209,8 +209,9 @@ static void handle_ready_client(int client_fd, fd_set *master_set) {
 
 int main(int argc, char *argv[]){
     int portno;
-    int current_max_fd;
     int max_fd;
+    int active_count;
+    const int *active_fds;
     fd_set master_set, read_set;
     struct sockaddr_in serv_addr;
 
@@ -253,10 +254,9 @@ int main(int argc, char *argv[]){
     while (1) {
         read_set = master_set;
 
-        current_max_fd = client_max_fd();
         max_fd = sockfd;
-        if (current_max_fd > max_fd) {
-            max_fd = current_max_fd;
+        if (client_max_fd() > max_fd) {
+            max_fd = client_max_fd();
         }
 
         if (select(max_fd + 1, &read_set, NULL, NULL, NULL) < 0) {
@@ -267,10 +267,9 @@ int main(int argc, char *argv[]){
             accept_new_client(&master_set);
         }
 
-        for (int fd = 0; fd <= max_fd; fd++) {
-            if (fd == sockfd) {
-                continue;
-            }
+        active_count = client_list_fds(&active_fds);
+        for (int i = 0; i < active_count; i++) {
+            int fd = active_fds[i];
             if (FD_ISSET(fd, &read_set)) {
                 handle_ready_client(fd, &master_set);
             }

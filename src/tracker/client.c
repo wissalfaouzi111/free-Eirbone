@@ -16,6 +16,9 @@ struct Client {
 
 typedef struct {
     Client slots[FD_SETSIZE];
+    int active_fds[FD_SETSIZE];
+    int fd_pos[FD_SETSIZE];
+    int active_count;
     int count;
     int max_fd;
 } ClientTable;
@@ -29,10 +32,10 @@ static int is_valid_fd(int fd) {
 static void recompute_max_fd(void) {
     g_clients.max_fd = -1;
 
-    for (int fd = FD_SETSIZE - 1; fd >= 0; fd--) {
-        if (g_clients.slots[fd].active) {
+    for (int i = 0; i < g_clients.active_count; i++) {
+        int fd = g_clients.active_fds[i];
+        if (fd > g_clients.max_fd) {
             g_clients.max_fd = fd;
-            break;
         }
     }
 }
@@ -43,6 +46,7 @@ void client_system_init(void) {
 
     for (int fd = 0; fd < FD_SETSIZE; fd++) {
         g_clients.slots[fd].fd = -1;
+        g_clients.fd_pos[fd] = -1;
     }
 }
 
@@ -72,6 +76,8 @@ Client *create_client(int fd, const char *ip, int port) {
     client->in_len = 0;
     client->in_buffer[0] = '\0';
 
+    g_clients.fd_pos[fd] = g_clients.active_count;
+    g_clients.active_fds[g_clients.active_count++] = fd;
     g_clients.count++;
     if (fd > g_clients.max_fd) {
         g_clients.max_fd = fd;
@@ -97,6 +103,16 @@ void remove_client(int fd) {
     client->error_count = 0;
     client->in_len = 0;
     client->in_buffer[0] = '\0';
+
+    // Suppression O(1) de la liste active : swap avec le dernier fd.
+    int pos = g_clients.fd_pos[fd];
+    if (pos >= 0) {
+        int last_fd = g_clients.active_fds[g_clients.active_count - 1];
+        g_clients.active_fds[pos] = last_fd;
+        g_clients.fd_pos[last_fd] = pos;
+        g_clients.active_count--;
+        g_clients.fd_pos[fd] = -1;
+    }
 
     g_clients.count--;
 
@@ -131,13 +147,20 @@ int client_build_fdset(fd_set *set) {
     }
 
     FD_ZERO(set);
-    for (int fd = 0; fd < FD_SETSIZE; fd++) {
-        if (g_clients.slots[fd].active) {
-            FD_SET(fd, set);
-        }
+    for (int i = 0; i < g_clients.active_count; i++) {
+        FD_SET(g_clients.active_fds[i], set);
     }
 
     return g_clients.max_fd;
+}
+
+int client_list_fds(const int **fds) {
+    if (fds == NULL) {
+        return -1;
+    }
+
+    *fds = g_clients.active_fds;
+    return g_clients.active_count;
 }
 
 const char *client_get_ip(const Client *client) {

@@ -22,7 +22,7 @@ int lire_liste_cles(char **tokens, int i, int n, char dest[][TAILLE_MD5], int *n
         return -1;
 
     i++;
-    int initial_count = *nb; // Sauvegarde pour le rollback
+    int initial_count = *nb; 
 
     while (i < n && strcmp(tokens[i], "]") != 0)
     {
@@ -34,12 +34,12 @@ int lire_liste_cles(char **tokens, int i, int n, char dest[][TAILLE_MD5], int *n
         strncpy(dest[*nb], tokens[i], TAILLE_MD5 - 1);
         dest[*nb][TAILLE_MD5 - 1] = '\0';
 
-        (*nb)++; // POINT CRITIQUE : Les parenthèses sont obligatoires
+        (*nb)++;
         i++;
     }
 
     if (i >= n) {
-        *nb = initial_count; // Rollback si crochet fermant manquant
+        *nb = initial_count; 
         return -1;
     }
 
