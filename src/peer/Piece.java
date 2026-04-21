@@ -1,3 +1,4 @@
+package peer;
 /**
  * Represents a single piece of a file in the P2P system.
  * Each piece is 1024 bytes, padded if necessary.
