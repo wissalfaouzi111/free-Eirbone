@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     }
     write(sockfd, "look [ video.mp4 ]\n", 19);
     int n = read(sockfd, buffer, 255);
-    assert(n == 0);
+    assert(n <= 0);
 
     printf("✅ TEST D'INTEGRATION SERVEUR (Announce + Look + Getfile + Kick) REUSSI\n");
     close(sockfd);

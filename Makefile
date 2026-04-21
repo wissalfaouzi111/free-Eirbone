@@ -9,6 +9,7 @@ TRACKER_BIN := $(BIN_DIR)/tracker_server
 TEST_BIN := $(BIN_DIR)/test_message
 TEST_SERVER_BIN := $(BIN_DIR)/test_server
 TEST_FILE_BIN := $(BIN_DIR)/test_file
+TEST_CLIENT_BIN := $(BIN_DIR)/test_client
 PEER_OUT_DIR := $(BIN_DIR)/peer
 PEER_STAMP := $(PEER_OUT_DIR)/.compiled
 TEST_PEERS_BIN := $(BIN_DIR)/test_peers
@@ -19,7 +20,7 @@ TEST_PORT ?= 8081
 
 .PHONY: all tracker peer tests test run-tests run-tracker run-server stop-tracker clean help
 
-all: $(TRACKER_BIN) $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN) $(TEST_PEERS_BIN)
+all: $(TRACKER_BIN) $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN) $(TEST_CLIENT_BIN) $(TEST_PEERS_BIN)
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
@@ -39,17 +40,22 @@ $(TEST_SERVER_BIN): test/test_server.c | $(BIN_DIR)
 $(TEST_FILE_BIN): test/test_file.c src/tracker/file.c src/tracker/peers.c | $(BIN_DIR)
 	$(CC) $(CFLAGS) $^ -o $@
 
+$(TEST_CLIENT_BIN): test/test_client.c src/tracker/client.c | $(BIN_DIR)
+	$(CC) $(CFLAGS) $^ -o $@
+
 $(TEST_PEERS_BIN): test/test_peers.c src/tracker/peers.c | $(BIN_DIR)
 	$(CC) $(CFLAGS) $^ -o $@
 
 run-tests: all
 	@echo "\n=== 1. TESTS PEERS ==="
 	./$(TEST_PEERS_BIN)
-	@echo "\n=== 2. TESTS FILE ==="
+	@echo "\n=== 2. TESTS CLIENT ==="
+	./$(TEST_CLIENT_BIN)
+	@echo "\n=== 3. TESTS FILE ==="
 	./$(TEST_FILE_BIN)
-	@echo "\n=== 3. TESTS PARSING ==="
+	@echo "\n=== 4. TESTS PARSING ==="
 	./$(TEST_BIN)
-	@echo "\n=== 4. TESTS D'INTÉGRATION SERVEUR ==="
+	@echo "\n=== 5. TESTS D'INTÉGRATION SERVEUR ==="
 	@./$(TRACKER_BIN) $(TEST_PORT) & SERVER_PID=$$!; \
 	sleep 1; \
 	./$(TEST_SERVER_BIN) $(TEST_PORT); \
