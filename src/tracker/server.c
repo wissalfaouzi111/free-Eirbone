@@ -43,24 +43,20 @@ void announce(MessageP2P *msg, Client *client) {
     }
 }
 
-char* look(MessageP2P *msg) {
-    if (msg == NULL || msg->commande[0] == '\0') return NULL;
-
-    char *output = malloc(MAX_OUTPUT);
-    if (output == NULL) return NULL;
-
-    snprintf(output, MAX_OUTPUT, "list [");
-    
-    if (strlen(msg->hash_cible) > 0) {
-        FichierInfo *fichier = trouver_fichier_par_nom(msg->hash_cible);
-        if (fichier != NULL) {
-            size_t len = strlen(output);
-            snprintf(output + len, MAX_OUTPUT - len, " %s %ld %d %s", 
-                    fichier->nom, fichier->taille, fichier->taille_piece, fichier->cle_md5);
-        }
+static void build_look_response(const MessageP2P *msg, char *response) {
+    if (msg == NULL || msg->hash_cible[0] == '\0') {
+        snprintf(response, MAX_OUTPUT, "list [ ]\n");
+        return;
     }
-    strcat(output, " ]\n");
-    return output;
+
+    FichierInfo *fichier = trouver_fichier_par_nom(msg->hash_cible);
+    if (fichier == NULL) {
+        snprintf(response, MAX_OUTPUT, "list [ ]\n");
+        return;
+    }
+
+    snprintf(response, MAX_OUTPUT, "list [ %s %ld %d %s ]\n",
+             fichier->nom, fichier->taille, fichier->taille_piece, fichier->cle_md5);
 }
 
 void update_tracker(MessageP2P *msg, Client *client) {
@@ -82,30 +78,29 @@ void update_tracker(MessageP2P *msg, Client *client) {
 }
 
 int answer(MessageP2P *msg, char *response, Client *client) {
-    int is_error = 0;
     if (msg == NULL || msg->commande[0] == '\0') {
-        sprintf(response, "ERROR Invalid format\n");
-        is_error = 1;
+        snprintf(response, MAX_OUTPUT, "ERROR Invalid format\n");
+        return 1;
     }
-    else if (strcmp(msg->commande, "announce") == 0) {
+
+    if (strcmp(msg->commande, "announce") == 0) {
         announce(msg, client);
-        sprintf(response, "ok\n");
+        snprintf(response, MAX_OUTPUT, "ok\n");
+        return 0;
     }
-    else if (strcmp(msg->commande, "update") == 0) {
+
+    if (strcmp(msg->commande, "update") == 0) {
         update_tracker(msg, client);
-        sprintf(response, "ok\n"); 
+        snprintf(response, MAX_OUTPUT, "ok\n");
+        return 0;
     }
-    else if (strcmp(msg->commande, "look") == 0) {
-        char* output = look(msg);
-        if (output == NULL) {
-            sprintf(response, "list [ ]\n");
-        } else {
-            strncpy(response, output, MAX_OUTPUT - 1);
-            response[MAX_OUTPUT - 1] = '\0';
-            free(output);
-        }
+
+    if (strcmp(msg->commande, "look") == 0) {
+        build_look_response(msg, response);
+        return 0;
     }
-    else if (strcmp(msg->commande, "getfile") == 0) {
+
+    if (strcmp(msg->commande, "getfile") == 0) {
         char *peers_str = generer_liste_peers_pour_fichier(msg->hash_cible);
         if (peers_str != NULL) {
             snprintf(response, MAX_OUTPUT, "peers %s %s\n", msg->hash_cible, peers_str);
@@ -113,12 +108,11 @@ int answer(MessageP2P *msg, char *response, Client *client) {
         } else {
             snprintf(response, MAX_OUTPUT, "peers %s [ ]\n", msg->hash_cible);
         }
+        return 0;
     }
-    else {
-        sprintf(response, "ERROR Unknown command\n");
-        is_error = 1;
-    }
-    return is_error;
+
+    snprintf(response, MAX_OUTPUT, "ERROR Unknown command\n");
+    return 1;
 }
 
 static void close_client_connection(int client_fd, fd_set *master_set) {
@@ -150,6 +144,7 @@ static void accept_new_client(fd_set *master_set) {
 static void handle_ready_client(int client_fd, fd_set *master_set) {
     char buffer[BUFLEN];
     char response[MAX_OUTPUT];
+    const char *ip;
     int n;
     int should_close_after_send = 0;
 
@@ -159,41 +154,42 @@ static void handle_ready_client(int client_fd, fd_set *master_set) {
         FD_CLR(client_fd, master_set);
         return;
     }
+    ip = client_get_ip(client);
 
     // On traite un seul message par passage select pour ne pas bloquer les autres clients.
-    bzero(buffer, BUFLEN);
+    memset(buffer, 0, sizeof(buffer));
     n = read(client_fd, buffer, BUFLEN - 1);
 
     if (n <= 0) {
-        printf("Le client %s s'est déconnecté.\n", client_get_ip(client));
+        printf("Le client %s s'est déconnecté.\n", ip);
         close_client_connection(client_fd, master_set);
         return;
     }
 
-    printf("[%s] Recu (%d octets): %.*s\n", client_get_ip(client), n, n, buffer);
+    printf("[%s] Recu (%d octets): %.*s\n", ip, n, n, buffer);
 
     MessageP2P *msg = add_message(buffer);
     if (msg != NULL && msg->commande[0] != '\0') {
-        printf("[%s] Commande detectee: %s\n", client_get_ip(client), msg->commande);
+        printf("[%s] Commande detectee: %s\n", ip, msg->commande);
     } else {
-        printf("[%s] Commande detectee: <invalide>\n", client_get_ip(client));
+        printf("[%s] Commande detectee: <invalide>\n", ip);
     }
 
-    bzero(response, BUFLEN);
+    memset(response, 0, sizeof(response));
     int is_error = answer(msg, response, client);
 
     if (is_error) {
         int count = client_inc_error_count(client);
         printf("Erreur de formatage (%d/3)\n", count);
         if (count >= 3) {
-            printf("Déconnexion forcée de %s : 3 erreurs successives.\n", client_get_ip(client));
+            printf("Déconnexion forcée de %s : 3 erreurs successives.\n", ip);
             should_close_after_send = 1;
         }
     } else {
         client_reset_error_count(client);
     }
 
-    printf("[%s] Reponse envoyee: %s", client_get_ip(client), response);
+    printf("[%s] Reponse envoyee: %s", ip, response);
     write(client_fd, response, strlen(response));
 
     if (msg != NULL) {

@@ -168,20 +168,21 @@ void add_peer_to_file(const char *cle_md5, Peer *peer) {
 char* generer_liste_peers_pour_fichier(const char *cle_md5) {
     char *buffer = malloc(1024);
     if (!buffer) return NULL;
-    strcpy(buffer, "[");
+    size_t pos = 0;
+    pos += snprintf(buffer + pos, 1024 - pos, "[");
 
     FichierTracker *ft = get_tracker_by_md5(cle_md5);
     if (ft) {
         PeerListNode *curr = ft->peers_head;
         while (curr) {
-            char temp[64];
-            snprintf(temp, sizeof(temp), " %s:%d", get_peer_ip(curr->peer), get_peer_port(curr->peer));
-            if (strlen(buffer) + strlen(temp) < 1000) {
-                strcat(buffer, temp);
+            int written = snprintf(buffer + pos, 1024 - pos, " %s:%d",
+                                   get_peer_ip(curr->peer), get_peer_port(curr->peer));
+            if (written > 0 && pos + (size_t)written < 1024) {
+                pos += (size_t)written;
             }
             curr = curr->next;
         }
     }
-    strcat(buffer, " ]");
+    snprintf(buffer + pos, 1024 - pos, " ]");
     return buffer;
 }

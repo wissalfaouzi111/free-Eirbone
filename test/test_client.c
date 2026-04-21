@@ -5,7 +5,6 @@
 #include "../src/tracker/client.h"
 
 int main(void) {
-    fd_set set;
 
     client_system_init();
     assert(client_max_fd() == -1);
