@@ -37,6 +37,16 @@ public class Main {
         // Wait a bit for it to start
         Thread.sleep(1000);
 
+        // Export status every second for the dashboard
+        Thread exportThread = new Thread(() -> {
+            while (true) {
+                StatusExporter.export(peerState);
+                try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+            }
+        });
+        exportThread.setDaemon(true);
+        exportThread.start();
+
         if (args.length >= 1 && args[0].equals("debug_download") && args.length == 4) {
             // Debug mode full download: debug_download <ip> <port> <key>
             String ip = args[1];
