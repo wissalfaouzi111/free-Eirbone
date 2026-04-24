@@ -156,7 +156,8 @@ Le serveur Tracker a été construit avec un focus sur la stabilité et le respe
 \subsection{Réseau et Sécurité}
 Le serveur repose sur des Sockets TCP (\texttt{AF\_INET}, \texttt{SOCK\_STREAM}).
 \begin{itemize}
-    \item \textbf{Keep-Alive :} La communication client-serveur maintient la connexion TCP ouverte via une boucle \texttt{while} interne permettant de traiter plusieurs requêtes d'un même pair sans overhead de reconnexion.
+    \item \textbf{Keep-Alive :} La connexion TCP reste ouverte tant que le pair est valide. Le tracker traite les requêtes au fil des événements réseau, sans imposer de reconnexion à chaque message.
+    \item \textbf{Multi-connexions :} Le tracker utilise \texttt{select()} avec un ensemble de descripteurs surveillés. Cela permet de gérer plusieurs clients en parallèle dans un seul processus, sans threads.
     \item \textbf{Tolérance aux pannes :} Le serveur ferme de force la connexion d'un client au bout de 3 messages consécutifs mal formatés.
     \item \textbf{Gestion des ports :} L'option \texttt{SO\_REUSEADDR} a été configurée pour court-circuiter le délai \texttt{TIME\_WAIT} du système, et un gestionnaire de signaux (\texttt{SIGINT}) a été mis en place pour libérer la socket proprement en cas d'interruption.
 \end{itemize}
@@ -169,22 +170,24 @@ La lecture des commandes utilise \texttt{strtok} pour isoler les chaînes. Le pa
     \item \textbf{Rollback :} En cas de détection d'une anomalie au milieu de l'analyse d'une liste de fichiers, le compteur d'éléments est réinitialisé à son état d'origine pour éviter la corruption de la structure de données \texttt{MessageP2P}.
 \end{itemize}
 
-\subsection{Optimisation Algorithmique : Double Indexation}
-Initialement, la recherche d'un fichier par son nom (commande \texttt{look}) ou par sa clé MD5 (commande \texttt{getfile}) dans une structure linéaire nécessitait un parcours complet, induisant une complexité algorithmique de $O(N)$. 
+\subsection{Optimisation Algorithmique}
+La recherche d'un fichier par son nom (commande \texttt{look}) ou par sa clé MD5 (commande \texttt{getfile}) a été optimisée pour éviter les parcours linéaires.
 
-Pour garantir des temps de réponse instantanés même avec un grand nombre de fichiers partagés sur le réseau, une architecture à \textbf{double indexation} a été mise en place :
+Pour garantir des temps de réponse rapides même avec un grand nombre d'entrées, plusieurs optimisations complémentaires ont été mises en place :
 \begin{itemize}
-    \item Une seule instance des informations d'un fichier (\texttt{FichierTracker}) est allouée en mémoire centrale.
-    \item Deux tables de hachage distinctes pointent vers cette même instance : l'une utilisant le nom du fichier comme clé d'indexation, et l'autre utilisant le hash MD5.
-    \item La fonction de hachage utilisée est l'algorithme \textbf{DJB2}, réputé pour sa rapidité d'exécution et sa faible probabilité de collision.
+    \item \textbf{Double indexation des fichiers :} une table de hachage par nom et une table par MD5 pointent vers la même structure de fichier (pas de duplication de données).
+    \item \textbf{Indexation des peers par IP :} la recherche d'un pair par adresse IP ne parcourt plus toute la liste chaînée des peers ; elle passe par des buckets de hachage.
+    \item \textbf{Parcours des clients actifs :} la boucle réseau ne parcourt plus tous les descripteurs possibles de 0 à \texttt{max\_fd}. Elle itère sur la liste des clients actifs uniquement.
+    \item \textbf{Fonction de hachage :} l'algorithme \textbf{DJB2} est utilisé pour son bon compromis simplicité/performance.
 \end{itemize}
-Cette conception permet d'atteindre une complexité en temps constant \textbf{$O(1)$} pour toutes les requêtes de recherche, sans pour autant dupliquer les données en mémoire.
+En pratique, les recherches deviennent en moyenne proches de \textbf{$O(1)$} sur les index hachés, et la boucle \texttt{select()} réduit le coût de parcours à \textbf{$O(C)$} avec $C$ le nombre de clients actifs.
 
 \subsection{Tests automatisés}
 Une méthodologie de validation par tests a été intégrée via le \texttt{Makefile} :
 \begin{itemize}
-    \item \textbf{Tests unitaires :} Validation locale du module de parsing, du registre des fichiers et de la base des pairs via \texttt{assert.h}. Ils injectent des trames réseau invalides pour s'assurer que le serveur n'entre pas en erreur fatale (Segmentation Fault).
-    \item \textbf{Tests d'intégration :} Le Makefile lance le binaire du tracker en arrière-plan, compile et exécute un client fictif en C qui lui soumet un scénario complet, analyse la réponse du serveur (\texttt{> ok} ou \texttt{list [...]}), puis termine le processus serveur.
+    \item \textbf{Tests unitaires :} Validation locale des modules parsing, fichiers, peers et gestion des clients (\texttt{assert.h}).
+    \item \textbf{Tests d'intégration :} Le Makefile lance le tracker en arrière-plan puis exécute un client C qui enchaîne \texttt{announce}, \texttt{look}, \texttt{getfile} et le scénario de déconnexion après 3 erreurs.
+    \item \textbf{Test d'acceptation multi-clients :} un test automatisé ouvre 3 connexions TCP en parallèle, envoie des commandes simultanées et vérifie qu'aucun client ne bloque les autres.
 \end{itemize}
 
 \section{Implémentation du Peer (Java)}
@@ -202,10 +205,10 @@ Une méthodologie de validation par tests a été intégrée via le \texttt{Make
 \section{Travail réalisé à ce stade}
 \begin{itemize}
     \item Architecture de la gestion de projet (Jira, Story Points).
-    \item Implémentation du serveur Tracker (TCP, Keep-Alive).
+    \item Implémentation du serveur Tracker (TCP, Keep-Alive, multiplexage \texttt{select}).
     \item Parsing sécurisé des commandes \texttt{announce}, \texttt{look}, \texttt{update} et \texttt{getfile}.
-    \item Optimisation des structures de données (Tables de hachage, Double indexation $O(1)$).
-    \item Moteur de tests unitaires et d'intégration fonctionnel.
+    \item Optimisation des structures de données (double indexation fichiers, index IP peers, parcours clients actifs).
+    \item Moteur de tests unitaires, d'intégration et d'acceptation multi-clients fonctionnel.
     \item (Peer) Implémentation du serveur peer et gestion des commandes réseau.
     \item (Peer) Découpage des fichiers et encodage du buffermap en Base64.
 \end{itemize}
@@ -219,13 +222,12 @@ Une méthodologie de validation par tests a été intégrée via le \texttt{Make
 
 \section{Travail restant}
 \begin{itemize}
-    \item Implémentation du multiplexage I/O (\texttt{select}) sur le Tracker pour remplacer le traitement séquentiel actuel des clients.
     \item Optimisation du téléchargement P2P (logique Leecher/Seeder avancée).
     \item Intégration du serveur HTTP embarqué pour l'interface graphique.
     \item Tests finaux de déploiement multisites sur l'infrastructure réseau de l'école (gestion des pare-feux).
 \end{itemize}
 
 \section{Conclusion}
-La première moitié du projet a permis de concevoir des fondations solides, notamment un protocole applicatif robuste et une gestion mémoire fiabilisée côté serveur. La suite du projet nécessitera de migrer le Tracker vers une architecture réseau non-bloquante et de valider les échanges de données binaires P2P à grande échelle.
+La première moitié du projet a permis de concevoir des fondations solides, avec un protocole applicatif robuste, un tracker multi-clients basé sur \texttt{select()}, et des structures de données optimisées côté serveur. La suite du projet est maintenant centrée sur l'optimisation des échanges P2P et la validation à plus grande échelle en conditions réseau réelles.
 
 \end{document}

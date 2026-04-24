@@ -1,3 +1,5 @@
+package peer;
+
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -121,7 +123,7 @@ public class Main {
         for (int i = 0; i < totalPieces; i++) {
             if (i / 8 < bytes.length && (bytes[i / 8] & (1 << (7 - (i % 8)))) != 0) {
                 bs.set(i);
-            }
+             }
         }
         return bs;
     }

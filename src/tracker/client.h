@@ -1,66 +1,27 @@
 #ifndef __CLIENT_H__
 #define __CLIENT_H__
 
-#include <stddef.h>
 #include <sys/select.h>
 #include "peers.h"
 
-#define CLIENT_BUFFER_SIZE 4096
+typedef struct Client Client;
 
-/*
-    Structure représentant un client connecté au tracker
-*/
-typedef struct {
-    int fd;
-    char ip[TAILLE_IP];
-    int port;
-    int active;
-    char in_buffer[CLIENT_BUFFER_SIZE];
-    size_t in_len;
-} Client;
+void client_system_init(void);
 
-/*
-    Table de clients connectés, indexée par des descripteurs de fichiers (fd)
-*/
-typedef struct {
-    Client slots[FD_SETSIZE];
-    int count;
-    int max_fd;
-} ClientTable;
+Client *create_client(int fd, const char *ip, int port);
 
-/*
-    Initialise la table de clients
-*/
-void client_table_init(ClientTable *table);
+Client *get_client(int fd);
 
-/*
-    Ajoute un client à la table
-*/
-int client_table_add(ClientTable *table, int fd, const char *ip, int port);
+void remove_client(int fd);
 
-/*
-    Retire un client de la table
-*/
-void client_table_remove(ClientTable *table, int fd);
+int client_max_fd(void);
 
-/*
-    Récupère un client de la table par son descripteur de fichier
-*/
-Client *client_table_get(ClientTable *table, int fd);
+int client_list_fds(const int **fds);
 
-/*
-    Renvoie le nombre de clients dans la table
-*/
-int client_table_count(const ClientTable *table);
+const char *client_get_ip(const Client *client);
 
-/*
-    Renvoie le plus grand descripteur de fichier dans la table
-*/
-int client_table_max_fd(const ClientTable *table);
+void client_reset_error_count(Client *client);
 
-/*
-    Construit un ensemble de descripteurs de fichiers à partir de la table
-*/
-int client_table_build_fdset(const ClientTable *table, fd_set *set);
+int client_inc_error_count(Client *client);
 
 #endif /* __CLIENT_H__ */

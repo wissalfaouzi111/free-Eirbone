@@ -1,3 +1,4 @@
+package peer;
 /**
  * Describes a file shared in the P2P network.
  * Contains metadata used for announcing files to the tracker.

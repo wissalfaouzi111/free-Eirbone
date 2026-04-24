@@ -1,3 +1,4 @@
+package peer;
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -86,7 +87,9 @@ public class PeerHandler implements Runnable {
             if (!first) {
                 header.append(" ");
             }
-            header.append(idx).append(" 1024");
+            int size = (idx == dl.file.totalPieces() - 1) ? (int)(dl.file.getLength() % 1024) : 1024;
+            if (size == 0) size = 1024;
+            header.append(idx).append(" ").append(size);
             listeIndices.add(idx);
             first = false;
         }
