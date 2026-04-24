@@ -7,6 +7,7 @@ class Config {
     String trackerHost;
     String trackerPort;
     String listenPort ;
+    String maxPeers = "5"; 
     File[] files;
 
 
@@ -35,6 +36,9 @@ class Config {
             if(key.equals("dossier")){
                 File dossier = new File(value);
                 config.files = dossier.listFiles();
+            }
+            if(key.equals("maxPeers")){
+                config.maxPeers = value;
             }
           
             
