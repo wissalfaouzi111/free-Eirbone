@@ -3,32 +3,66 @@ package peer;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.Base64;
 
 public class Main {
+    private static final String DOWNLOADS_DIR = "data/downloads";
+    private static final int SERVER_PORT = 2222;
+    private static PeerState peerState;
+
     public static void main(String[] args) throws Exception {
+        // Create directories if they do not exist
+        new File(DOWNLOADS_DIR).mkdirs();
+        new File("data/incomplete").mkdirs();
+        new File("data/complete").mkdirs();
 
-        Config config = Config.load("config.ini");
-        PeerState state = new PeerState();
+        // Load local file state
+        peerState = createPeerStateFromDownloads();
 
-        // ── 1. Démarrer le PeerServer en arrière-plan ─────────────────────
-        Thread serverThread = new Thread(new PeerServer(config, state));
+        // Start server
+        Config config = new Config();
+        config.listenPort = String.valueOf(SERVER_PORT);
+        PeerServer server = new PeerServer(config, peerState);
+        Thread serverThread = new Thread(() -> {
+            try {
+                System.out.println("[SERVER] Starting server on port " + SERVER_PORT);
+                server.run();
+            } catch (Exception e) {
+                System.out.println("[SERVER] Error: " + e.getMessage());
+            }
+        });
         serverThread.setDaemon(true);
         serverThread.start();
-        System.out.println("[Main] PeerServer démarré sur le port " + config.listenPort);
 
-        // ── 2. Se connecter au Tracker ────────────────────────────────────
-        Client client = new Client(config);
-        client.connect();
+        // Wait a bit for it to start
+        Thread.sleep(1000);
 
-        // ── 3. Annoncer sa présence (sans fichier pour l'instant) ─────────
-        Announce announce = new Announce();
-        String announceMsg = announce.announce(config);
-        System.out.println("[Main] Envoi announce : " + announceMsg.trim());
-        client.send(announceMsg);
-        String ok = client.receive();
-        System.out.println("[Main] Tracker répond : " + ok);
+        // Export status every second for the dashboard
+        Thread exportThread = new Thread(() -> {
+            while (true) {
+                StatusExporter.export(peerState);
+                try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+            }
+        });
+        exportThread.setDaemon(true);
+        exportThread.start();
 
-        // ── 4. Chercher un fichier ─────────────────────────────────────────
+        // Announce files to tracker
+        announceToTracker();
+
+        if (args.length >= 1 && args[0].equals("debug_download") && args.length == 4) {
+            // Debug mode full download: debug_download <ip> <port> <key>
+            String ip = args[1];
+            int port = Integer.parseInt(args[2]);
+            String key = args[3];
+            runDebugDownload(ip, port, key);
+        } else {
+            // Interactive mode
+            runInteractiveMode();
+        }
+    }
+
+    private static void runInteractiveMode() {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             System.out.println("\n=== INTERACTIVE MENU ===");
@@ -51,97 +85,245 @@ public class Main {
 
             String input = scanner.nextLine().trim();
 
-        client.send("look [filename=" + filename + "]\n");
-        String listResponse = client.receive();
-        System.out.println("[Main] Tracker répond : " + listResponse);
-
-        List<FileInfo> fichiers = TrackerResponse.parseListResponse(listResponse);
-        if (fichiers.isEmpty()) {
-            System.out.println("[Main] Fichier introuvable sur le réseau.");
-            return;
-        }
-
-        FileInfo fi = fichiers.get(0);
-        System.out.println("[Main] Fichier trouvé : " + fi);
-
-        // ── 5. Demander la liste des pairs au Tracker ──────────────────────
-        client.send("getfile " + fi.getKey() + "\n");
-        String peersResponse = client.receive();
-        System.out.println("[Main] Tracker répond : " + peersResponse);
-
-        PeersResult result = TrackerResponse.parsePeersResponse(peersResponse);
-        if (result == null || result.peers.isEmpty()) {
-            System.out.println("[Main] Aucun pair disponible.");
-            return;
-        }
-
-        // Stocker les pairs dans PeerState
-        state.setPeers(fi.getKey(), result.peers);
-
-        // Créer le DownloadState pour ce fichier
-        DownloadState dl = new DownloadState(fi);
-        state.addDownload(dl);
-
-        // ── 6. Se connecter à chaque pair et envoyer interested ───────────
-        int maxPeers = Integer.parseInt(config.maxPeers);
-        List<PeerInfo> selected = result.peers.subList(
-                0, Math.min(maxPeers, result.peers.size()));
-
-        for (PeerInfo peer : selected) {
-            try {
-                System.out.println("[Main] Connexion au pair " 
-                        + peer.ip + ":" + peer.port);
-
-                Socket peerSocket = new Socket(peer.ip, peer.port);
-                BufferedReader peerReader = new BufferedReader(
-                        new InputStreamReader(peerSocket.getInputStream()));
-                PrintWriter peerWriter = new PrintWriter(
-                        new BufferedWriter(
-                                new OutputStreamWriter(peerSocket.getOutputStream())), true);
-
-                // Envoyer interested
-                peerWriter.println("interested " + fi.getKey());
-                System.out.println("[Main] → interested " + fi.getKey());
-
-                // Lire have
-                String haveResponse = peerReader.readLine();
-                System.out.println("[Main] ← " + haveResponse);
-
-                // Parser le buffermap et le stocker dans PeerInfo
-                if (haveResponse != null && haveResponse.startsWith("have")) {
-                    String[] tokens = haveResponse.split("\\s+", 3);
-                    if (tokens.length == 3) {
-                        peer.bufferMap = decodeBuffermap(tokens[2], fi.totalPieces());
-                        System.out.println("[Main] Buffermap stocké pour " 
-                                + peer.ip + " — pièces disponibles : "
-                                + peer.bufferMap.cardinality() + "/" + fi.totalPieces());
-                    }
+            if (input.equals("1") || input.startsWith("listen")) {
+                showServedFiles();
+                System.out.println("[INFO] Server listening on port " + SERVER_PORT + ". Press Ctrl+C to exit.");
+                // Stay listening (server is already running)
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    break;
                 }
-
-                // Lancer un thread de téléchargement sur ce pair
-                Thread dlThread = new Thread(
-                        new PeerHandler(peerSocket, state));
-                dlThread.setDaemon(true);
-                dlThread.start();
-
-            } catch (IOException e) {
-                System.out.println("[Main] Impossible de joindre " 
-                        + peer.ip + ":" + peer.port + " — " + e.getMessage());
+            } else if (input.startsWith("2") || input.startsWith("download ")) {
+                String[] parts = input.split("\\s+");
+                if (parts.length == 4) {
+                    try {
+                        String ip = parts[1];
+                        int port = Integer.parseInt(parts[2]);
+                        String key = parts[3];
+                        runDebugDownload(ip, port, key);
+                    } catch (Exception e) {
+                        System.out.println("[ERROR] Invalid format. Use: download <ip> <port> <key>");
+                    }
+                } else {
+                    System.out.println("[ERROR] Use: download <ip> <port> <key>");
+                }
+            } else if (input.equals("3") || input.startsWith("list")) {
+                listAvailableFiles();
+            } else if (input.equals("4") || input.equals("exit")) {
+                break;
+            } else {
+                System.out.println("[ERROR] Invalid option.");
             }
         }
-
-        // ── 7. Attendre (le téléchargement tourne en arrière-plan) ────────
-        System.out.println("[Main] Téléchargement en cours... (Ctrl+C pour quitter)");
-        Thread.currentThread().join();
+        scanner.close();
     }
 
-    private static java.util.BitSet decodeBuffermap(String base64, int totalPieces) {
+    private static void showServedFiles() {
+        System.out.println("[INFO] Files being served:");
+        for (DownloadState ds : peerState.downloads.values()) {
+            FileInfo fi = ds.file;
+            System.out.println("- " + fi.getFilename() + " | key=" + fi.getKey() + " | pieces=" + fi.totalPieces() + " | complete=" + ds.isComplete());
+        }
+        if (peerState.downloads.isEmpty()) {
+            System.out.println("  (None)");
+        }
+    }
+
+    private static void listAvailableFiles() {
+        File dir = new File(DOWNLOADS_DIR);
+        File[] files = dir.listFiles();
+        if (files == null || files.length == 0) {
+            System.out.println("[DEBUG] No files in " + DOWNLOADS_DIR);
+            return;
+        }
+
+        System.out.println("[DEBUG] Available files:");
+        for (File file : files) {
+            if (file.isFile()) {
+                try {
+                    FileChunker chunker = new FileChunker(file);
+                    FileMetadata meta = chunker.getMetadata();
+                    System.out.println("- " + meta.getFilename() + " | size=" + meta.getLength() +
+                                       " | pieces=" + meta.getNumberOfPieces() + " | key=" + meta.getKey());
+                } catch (IOException e) {
+                    System.out.println("- " + file.getName() + " | Error: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private static void runDebugDownload(String ip, int port, String key) throws IOException {
+        System.out.println("[CLIENT] Connecting to " + ip + ":" + port + " for key=" + key);
+
+        try (Socket socket = new Socket(ip, port);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
+
+            // Send interested
+            writer.println("interested " + key);
+            System.out.println("[CLIENT] Sent: interested " + key);
+
+            // Receive have
+            String response = reader.readLine();
+            System.out.println("[CLIENT] Received: " + response);
+            if (!response.startsWith("have " + key + " ")) {
+                System.out.println("[CLIENT] Unexpected response");
+                return;
+            }
+
+            String base64 = response.substring(("have " + key + " ").length());
+            BitSet remoteBufferMap = decodeBufferMap(base64, 10000); // Assume max pieces
+            System.out.println("[CLIENT] Remote BufferMap: " + remoteBufferMap.cardinality() + " pieces available");
+
+            // Request all available pieces
+            List<Integer> toRequest = new ArrayList<>();
+            for (int i = 0; i < remoteBufferMap.length(); i++) {
+                if (remoteBufferMap.get(i)) {
+                    toRequest.add(i);
+                }
+            }
+
+            if (toRequest.isEmpty()) {
+                System.out.println("[CLIENT] No pieces available");
+                return;
+            }
+
+            // Send getpieces
+            StringBuilder sb = new StringBuilder("getpieces " + key + " [");
+            for (int i = 0; i < toRequest.size(); i++) {
+                if (i > 0) sb.append(" ");
+                sb.append(toRequest.get(i));
+            }
+            sb.append("]");
+            writer.println(sb.toString());
+            System.out.println("[CLIENT] Sent: getpieces with " + toRequest.size() + " pieces");
+
+            // Receive data header
+            String dataHeader = reader.readLine();
+            System.out.println("[CLIENT] Received header: " + dataHeader);
+
+            // Parse header to get list of (idx, size)
+            List<int[]> piecesInfo = parseDataHeader(dataHeader, key);
+            if (piecesInfo.isEmpty()) {
+                System.out.println("[CLIENT] Invalid header");
+                return;
+            }
+
+            // Create DownloadState for the file
+            int totalSize = piecesInfo.stream().mapToInt(p -> p[1]).sum();
+            FileInfo fileInfo = new FileInfo("downloaded_" + key, totalSize, 1024, key);
+            DownloadState ds = new DownloadState(fileInfo);
+
+            // Read and write each piece
+            InputStream in = socket.getInputStream();
+            for (int[] piece : piecesInfo) {
+                int idx = piece[0];
+                int size = piece[1];
+                byte[] data = new byte[size];
+                int read = in.read(data);
+                if (read == size) {
+                    ds.writePiece(idx, data);
+                    System.out.println("[CLIENT] Written piece " + idx + " (" + size + " bytes)");
+                } else {
+                    System.out.println("[CLIENT] Error reading piece " + idx + ", bytes read: " + read);
+                }
+            }
+
+            // Check if complete
+            if (ds.isComplete()) {
+                ds.getStorage().finalizeDownload("downloaded_" + key + ".complete");
+                System.out.println("[CLIENT] Download completed and file finalized in data/complete/");
+            } else {
+                System.out.println("[CLIENT] Partial download completed (" + ds.getBufferMap().cardinality() + "/" + fileInfo.totalPieces() + " pieces)");
+            }
+        }
+    }
+
+    private static List<int[]> parseDataHeader(String header, String expectedKey) {
+        List<int[]> pieces = new ArrayList<>();
+        // Format: data <key> [<idx> <size> ...]
+        String[] parts = header.split("\\s+");
+        if (parts.length < 3 || !parts[0].equals("data") || !parts[1].equals(expectedKey)) {
+            return pieces;
+        }
+
+        // Find [ and ]
+        int start = header.indexOf('[');
+        int end = header.lastIndexOf(']');
+        if (start == -1 || end == -1 || end <= start) {
+            return pieces;
+        }
+
+        String inside = header.substring(start + 1, end).trim();
+        String[] tokens = inside.split("\\s+");
+        for (int i = 0; i < tokens.length; i += 2) {
+            if (i + 1 < tokens.length) {
+                try {
+                    int idx = Integer.parseInt(tokens[i]);
+                    int size = Integer.parseInt(tokens[i + 1]);
+                    pieces.add(new int[]{idx, size});
+                } catch (NumberFormatException e) {
+                    // Ignore
+                }
+            }
+        }
+        return pieces;
+    }
+
+    private static PeerState createPeerStateFromDownloads() throws IOException {
+        PeerState state = new PeerState();
+        File dir = new File(DOWNLOADS_DIR);
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    FileChunker chunker = new FileChunker(file);
+                    FileMetadata meta = chunker.getMetadata();
+                    FileInfo fileInfo = new FileInfo(meta.getFilename(), meta.getLength(), meta.getPieceSize(), meta.getKey());
+                    DownloadState ds = new DownloadState(fileInfo);
+                    // Mark all pieces as available
+                    for (int i = 0; i < fileInfo.totalPieces(); i++) {
+                        ds.markPiece(i);
+                    }
+                    state.addDownload(ds);
+                }
+            }
+        }
+        return state;
+    }
+
+    private static void announceToTracker() {
+        try {
+            Config cfg = Config.load("config.ini");
+            cfg.listenPort = String.valueOf(SERVER_PORT);
+            cfg.files = new File(DOWNLOADS_DIR).listFiles();
+            if (cfg.trackerHost == null || cfg.trackerPort == null) return;
+            if (cfg.files == null || cfg.files.length == 0) {
+                System.out.println("[TRACKER] Aucun fichier à annoncer");
+                return;
+            }
+            String msg = new Announce().announce(cfg).trim();
+            Client client = new Client(cfg);
+            client.connect();
+            client.send(msg);
+            String response = client.receive();
+            System.out.println("[TRACKER] Announce : " + response);
+            client.socket.close();
+        } catch (Exception e) {
+            System.out.println("[TRACKER] Announce échouée (tracker hors ligne ?) : " + e.getMessage());
+        }
+    }
+
+    private static BitSet decodeBufferMap(String base64, int totalPieces) {
         byte[] bytes = Base64.getDecoder().decode(base64);
-        java.util.BitSet bs = new java.util.BitSet(totalPieces);
+        BitSet bs = new BitSet(totalPieces);
         for (int i = 0; i < totalPieces; i++) {
-            if (i / 8 < bytes.length && (bytes[i / 8] & (1 << (7 - (i % 8)))) != 0) {
-                bs.set(i);
-             }
+            if (i / 8 < bytes.length) {
+                if ((bytes[i / 8] & (1 << (7 - (i % 8)))) != 0) {
+                    bs.set(i);
+                }
+            }
         }
         return bs;
     }
