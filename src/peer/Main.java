@@ -1,7 +1,6 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.Base64;
 
 public class Main {
     private static final String DOWNLOADS_DIR = "data/downloads";
@@ -63,22 +62,23 @@ public class Main {
     private static void runInteractiveMode() {
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            System.out.println("\n=== INTERACTIVE MENU ===");
-            System.out.println("1. listen - Show served files and listen for connections");
-            System.out.println("2. download <ip> <port> <key> - Download complete file");
-            System.out.println("3. list - List locally available files");
-            System.out.println("4. exit - Exit");
-            System.out.print("Select option: ");
 
             // si le process n'a pas d'entree clavier (ex: lance depuis make), on evite le crash
             if (!scanner.hasNextLine()) {
-                System.out.println("\n[INFO] Pas d'entree clavier, mode ecoute auto.");
                 showServedFiles();
                 try {
                     Thread.sleep(Long.MAX_VALUE);
                 } catch (InterruptedException e) {
                     break;
                 }
+            }
+            else {
+                System.out.println("\n=== INTERACTIVE MENU ===");
+                System.out.println("1. listen - Show served files and listen for connections");
+                System.out.println("2. download <ip> <port> <key> - Download complete file");
+                System.out.println("3. list - List locally available files");
+                System.out.println("4. exit - Exit");
+                System.out.print("Select option: ");
             }
 
             String input = scanner.nextLine().trim();
@@ -118,7 +118,6 @@ public class Main {
     }
 
     private static void showServedFiles() {
-        System.out.println("[INFO] Files being served:");
         for (DownloadState ds : peerState.downloads.values()) {
             FileInfo fi = ds.file;
             System.out.println("- " + fi.getFilename() + " | key=" + fi.getKey() + " | pieces=" + fi.totalPieces() + " | complete=" + ds.isComplete());
