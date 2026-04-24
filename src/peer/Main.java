@@ -47,6 +47,9 @@ public class Main {
         exportThread.setDaemon(true);
         exportThread.start();
 
+        // Announce files to tracker
+        announceToTracker();
+
         if (args.length >= 1 && args[0].equals("debug_download") && args.length == 4) {
             // Debug mode full download: debug_download <ip> <port> <key>
             String ip = args[1];
@@ -276,6 +279,28 @@ public class Main {
             }
         }
         return state;
+    }
+
+    private static void announceToTracker() {
+        try {
+            Config cfg = Config.load("config.ini");
+            cfg.listenPort = String.valueOf(SERVER_PORT);
+            cfg.files = new File(DOWNLOADS_DIR).listFiles();
+            if (cfg.trackerHost == null || cfg.trackerPort == null) return;
+            if (cfg.files == null || cfg.files.length == 0) {
+                System.out.println("[TRACKER] Aucun fichier à annoncer");
+                return;
+            }
+            String msg = new Announce().announce(cfg).trim();
+            Client client = new Client(cfg);
+            client.connect();
+            client.send(msg);
+            String response = client.receive();
+            System.out.println("[TRACKER] Announce : " + response);
+            client.socket.close();
+        } catch (Exception e) {
+            System.out.println("[TRACKER] Announce échouée (tracker hors ligne ?) : " + e.getMessage());
+        }
     }
 
     private static BitSet decodeBufferMap(String base64, int totalPieces) {

@@ -1,6 +1,5 @@
 package peer;
 import java.io.*;
-import java.net.*;
 import java.security.MessageDigest;
 import java.util.*;
 

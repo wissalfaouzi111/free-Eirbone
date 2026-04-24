@@ -33,3 +33,5 @@ data/*
 .DS_Store
 Thumbs.db
 bin/*
+
+__pycache__
