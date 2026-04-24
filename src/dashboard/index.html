@@ -1,3 +1,5 @@
+<!-- HTML et CSS rédigé par IA -->
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -6,187 +8,164 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<h1>Eirbone</h1>
+  <h1>Eirbone Dashboard</h1>
 
-<div id="tracker-bar">
-  <span>Tracker :</span>
-  <span id="tracker-state" class="pending">Vérification…</span>
-  <span id="tracker-addr"></span>
-  <button class="ghost" id="retry-btn" onclick="checkTracker()" style="display:none">Réessayer</button>
-</div>
-
-<h2>Rechercher sur le tracker</h2>
-<div class="row">
-  <div class="field grow">
-    <label>Nom du fichier</label>
-    <input id="s-name" placeholder="exemple.mp4">
+  <div id="tracker-bar">
+    <span>Tracker :</span>
+    <span id="tracker-state" class="pending">test...</span>
+    <span id="tracker-addr"></span>
+    <button id="retry-btn" onclick="checkTracker()" style="display:none">retry</button>
   </div>
-  <button onclick="search()">🔍 Chercher</button>
-</div>
-<div class="msg" id="s-msg"></div>
-<div id="search-result"></div>
 
-<h2>Téléchargement direct (sans tracker)</h2>
-<form class="row" onsubmit="launch(event)">
-  <div class="field" style="flex:1.2"><label>IP</label>
-    <input id="d-ip" placeholder="192.168.x.x" required></div>
-  <div class="field" style="width:80px"><label>Port</label>
-    <input id="d-port" placeholder="2222" required></div>
-  <div class="field" style="flex:2"><label>Clé MD5</label>
-    <input id="d-key" placeholder="a3f9b..." required></div>
-  <div class="field" style="flex:1"><label>Nom fichier</label>
-    <input id="d-fn" placeholder="optionnel"></div>
-  <button type="submit">⬇ Lancer</button>
-</form>
-<div class="msg" id="d-msg"></div>
+  <h2>Recherche fichier</h2>
+  <div class="row">
+    <input id="s-name" placeholder="nom fichier">
+    <button onclick="search()">chercher</button>
+  </div>
+  <div class="msg" id="s-msg"></div>
+  <div id="search-result"></div>
 
-<h2>Téléchargements</h2>
-<div id="dls"><p class="empty">Aucun téléchargement en cours.</p></div>
+  <h2>Telechargement direct</h2>
+  <form class="row" onsubmit="launch(event)">
+    <input id="d-ip" placeholder="ip" required>
+    <input id="d-port" placeholder="port" required>
+    <input id="d-key" placeholder="md5" required>
+    <input id="d-fn" placeholder="nom optionnel">
+    <button type="submit">lancer</button>
+  </form>
+  <div class="msg" id="d-msg"></div>
 
-<h2>Fichiers locaux (servis par ce pair)</h2>
-<div id="loc"><p class="empty">Chargement…</p></div>
+  <h2>Telechargements</h2>
+  <div id="dls"><p class="empty">rien</p></div>
 
-<div id="ts"></div>
+  <h2>Fichiers locaux</h2>
+  <div id="loc"><p class="empty">chargement...</p></div>
 
-<script>
-async function checkTracker() {
-  const state = document.getElementById('tracker-state');
-  const retry = document.getElementById('retry-btn');
-  state.className = 'pending';
-  state.textContent = 'Vérification…';
-  retry.style.display = 'none';
+  <div id="ts"></div>
 
-  const d = await post('/tracker-status', null);
-  if (d && d.ok) {
-    state.className = 'ok';
-    state.textContent = '✔ Connecté';
-    document.getElementById('tracker-addr').textContent = '(' + d.addr + ')';
-  } else {
-    state.className = 'err';
-    state.textContent = '✘ Hors ligne';
-    document.getElementById('tracker-addr').textContent = d && d.error ? '— ' + d.error : '';
-    retry.style.display = 'inline';
-  }
-}
+  <script>
+  const q = (id) => document.getElementById(id);
 
-checkTracker();
-setInterval(checkTracker, 15000);
-
-async function search() {
-  const name = document.getElementById('s-name').value.trim();
-  const msg  = document.getElementById('s-msg');
-  if (!name) return;
-
-  msg.style.color = '#8b949e';
-  msg.textContent = 'Recherche…';
-  document.getElementById('search-result').innerHTML = '';
-
-  const d = await post('/search', { filename: name });
-  if (!d || !d.found) {
-    msg.style.color = '#f85149';
-    msg.textContent = (d && d.error) ? '✘ ' + d.error : '✘ Fichier non trouvé.';
-    return;
+  // mini helper pour appeler le serveur en JSON
+  async function post(url, body) {
+    try {
+      const opt = body
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        : {};
+      return await (await fetch(url, opt)).json();
+    } catch {
+      return null;
+    }
   }
 
-  msg.textContent = '';
-  const peers_html = d.peers.length === 0
-    ? '<p class="empty">Aucun pair disponible.</p>'
-    : d.peers.map(p => `
-        <div class="peer-row">
-          <span class="peer-addr">${p.ip}:${p.port}</span>
-          <button class="blue" onclick="dlPeer('${p.ip}','${p.port}','${d.key}','${d.filename}')">
-            ⬇ Télécharger
-          </button>
-        </div>`).join('');
+  async function checkTracker() {
+    q('tracker-state').className = 'pending';
+    q('tracker-state').textContent = 'test...';
+    q('retry-btn').style.display = 'none';
 
-  document.getElementById('search-result').innerHTML = `
-    <div class="result-box">
-      <div class="result-title">${d.filename}</div>
-      <div class="result-meta">
-        ${(d.size/1024).toFixed(1)} Ko | pièce ${d.piece_size} o | clé : ${d.key}
-      </div>
-      ${peers_html}
-    </div>`;
-}
+    const d = await post('/tracker-status', null);
+    if (d && d.ok) {
+      q('tracker-state').className = 'ok';
+      q('tracker-state').textContent = 'ok';
+      q('tracker-addr').textContent = '(' + d.addr + ')';
+      return;
+    }
 
-async function dlPeer(ip, port, key, filename) {
-  const d = await post('/download', { ip, port, key, filename });
-  if (d && !d.ok) alert('Erreur : ' + d.error);
-}
-
-async function launch(e) {
-  e.preventDefault();
-  const msg = document.getElementById('d-msg');
-  msg.style.color = '#8b949e';
-  msg.textContent = 'Connexion…';
-
-  const d = await post('/download', {
-    ip:       document.getElementById('d-ip').value.trim(),
-    port:     document.getElementById('d-port').value.trim(),
-    key:      document.getElementById('d-key').value.trim(),
-    filename: document.getElementById('d-fn').value.trim()
-  });
-
-  if (d && d.ok) {
-    msg.style.color = '#3fb950';
-    msg.textContent = '✔ Téléchargement lancé.';
-    e.target.reset();
-  } else {
-    msg.style.color = '#f85149';
-    msg.textContent = '✘ ' + (d && d.error ? d.error : 'Erreur inconnue');
+    q('tracker-state').className = 'err';
+    q('tracker-state').textContent = 'ko';
+    q('tracker-addr').textContent = d && d.error ? d.error : '';
+    q('retry-btn').style.display = 'inline';
   }
-}
 
-// envoie un POST JSON, retourne null si erreur réseau
-async function post(url, body) {
-  try {
-    const opts = body
-      ? { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) }
-      : {};
-    return await (await fetch(url, opts)).json();
-  } catch { return null; }
-}
+  async function search() {
+    const name = q('s-name').value.trim();
+    if (!name) return;
 
-function card(title, sub, pct, left, right, cls) {
-  let badge = '<span class="badge b-dl">En cours</span>';
-  if (cls === 'done') badge = '<span class="badge b-ok">Terminé</span>';
-  if (cls === 'err')  badge = '<span class="badge b-err">Erreur</span>';
+    q('s-msg').textContent = 'recherche...';
+    q('search-result').innerHTML = '';
 
-  return `<div class="card">
-    <div class="c-title">${title}${badge}</div>
-    <div class="c-sub">${sub}</div>
-    <div class="bar-bg"><div class="bar ${cls}" style="width:${pct}%"></div></div>
-    <div class="stats"><span>${left}</span><span class="pct">${right}</span></div>
-  </div>`;
-}
+    const d = await post('/search', { filename: name });
+    if (!d || !d.found) {
+      q('s-msg').textContent = (d && d.error) ? d.error : 'pas trouve';
+      return;
+    }
 
-async function refresh() {
-  const d = await post('/status', null);
-  if (!d) return;
+    q('s-msg').textContent = '';
+    let peers = '<p class="empty">aucun peer</p>';
+    if (d.peers.length) {
+      peers = d.peers.map(p =>
+        '<div class="peer-row">'
+          + '<span>' + p.ip + ':' + p.port + '</span>'
+          + '<button onclick="dlPeer(\'' + p.ip + '\',\'' + p.port + '\',\'' + d.key + '\',\'' + d.filename + '\')">telecharger</button>'
+        + '</div>'
+      ).join('');
+    }
 
-  const dls = document.getElementById('dls');
-  dls.innerHTML = d.downloads.length
-    ? d.downloads.map(f => {
-        const cls  = f.error ? 'err' : f.complete ? 'done' : '';
-        const left = f.error ? f.error : `${f.done} / ${f.total} pièces`;
-        const right = f.error ? '—' : f.pct + '%';
-        return card(f.filename, 'clé : ' + f.key, f.pct, left, right, cls);
-      }).join('')
-    : '<p class="empty">Aucun téléchargement en cours.</p>';
+    q('search-result').innerHTML =
+      '<div class="box">'
+        + '<div><b>' + d.filename + '</b></div>'
+        + '<div class="small">' + (d.size / 1024).toFixed(1) + ' Ko | piece ' + d.piece_size + ' | cle ' + d.key + '</div>'
+        + peers
+      + '</div>';
+  }
 
-  const loc = document.getElementById('loc');
-  loc.innerHTML = d.local.length
-    ? d.local.map(f =>
-        card(f.filename, 'clé : ' + f.key, f.pct,
-             `${f.done} / ${f.total} pièces`, f.pct + '%', f.complete ? 'done' : '')
-      ).join('')
-    : '<p class="empty">Aucun fichier local.</p>';
+  async function dlPeer(ip, port, key, filename) {
+    const d = await post('/download', { ip, port, key, filename });
+    if (d && !d.ok) {
+      alert('erreur: ' + d.error);
+    }
+  }
 
-  document.getElementById('ts').textContent = 'Mis à jour : ' + new Date().toLocaleTimeString();
-}
+  async function launch(e) {
+    e.preventDefault();
+    q('d-msg').textContent = 'connexion...';
 
-refresh();
-setInterval(refresh, 2000);
-</script>
+    const d = await post('/download', {
+      ip: q('d-ip').value.trim(),
+      port: q('d-port').value.trim(),
+      key: q('d-key').value.trim(),
+      filename: q('d-fn').value.trim(),
+    });
+
+    if (d && d.ok) {
+      q('d-msg').textContent = 'ok lance';
+      e.target.reset();
+    } else {
+      q('d-msg').textContent = 'erreur ' + (d && d.error ? d.error : 'inconnue');
+    }
+  }
+
+  function carte(nom, txt, pct, cls) {
+    return '<div class="card">'
+      + '<div><b>' + nom + '</b></div>'
+      + '<div class="small">' + txt + '</div>'
+      + '<div class="bar-wrap"><div class="bar ' + cls + '" style="width:' + pct + '%"></div></div>'
+      + '</div>';
+  }
+
+  async function refresh() {
+    const d = await post('/status', null);
+    if (!d) return;
+
+    q('dls').innerHTML = d.downloads.length
+      ? d.downloads.map(x => {
+          const cls = x.error ? 'err' : (x.complete ? 'ok' : '');
+          const txt = x.error ? x.error : (x.done + ' / ' + x.total + ' pieces - ' + x.pct + '% - cle: ' + x.key);
+          return carte(x.filename, txt, x.error ? 100 : x.pct, cls);
+        }).join('')
+      : '<p class="empty">aucun telechargement</p>';
+
+    q('loc').innerHTML = d.local.length
+      ? d.local.map(x => carte(x.filename, x.done + ' / ' + x.total + ' pieces - ' + x.pct + '% - cle: ' + x.key, x.pct, x.complete ? 'ok' : '')).join('')
+      : '<p class="empty">aucun fichier local</p>';
+
+    q('ts').textContent = 'maj: ' + new Date().toLocaleTimeString();
+  }
+
+  checkTracker();
+  refresh();
+  setInterval(checkTracker, 15000);
+  setInterval(refresh, 2000);
+  </script>
 </body>
 </html>

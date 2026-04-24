@@ -30,8 +30,26 @@ public class Main {
 
         // ── 4. Chercher un fichier ─────────────────────────────────────────
         Scanner scanner = new Scanner(System.in);
-        System.out.print("[Main] Nom du fichier à chercher : ");
-        String filename = scanner.nextLine().trim();
+        while (true) {
+            System.out.println("\n=== INTERACTIVE MENU ===");
+            System.out.println("1. listen - Show served files and listen for connections");
+            System.out.println("2. download <ip> <port> <key> - Download complete file");
+            System.out.println("3. list - List locally available files");
+            System.out.println("4. exit - Exit");
+            System.out.print("Select option: ");
+
+            // si le process n'a pas d'entree clavier (ex: lance depuis make), on evite le crash
+            if (!scanner.hasNextLine()) {
+                System.out.println("\n[INFO] Pas d'entree clavier, mode ecoute auto.");
+                showServedFiles();
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+
+            String input = scanner.nextLine().trim();
 
         client.send("look [filename=" + filename + "]\n");
         String listResponse = client.receive();
