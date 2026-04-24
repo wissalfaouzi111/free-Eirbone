@@ -79,7 +79,7 @@ test: tests run-tests
 
 # Compile + lance le peer Java ET le dashboard Python en parallèle
 peer: $(PEER_STAMP)
-	@echo "[PEER] Peer Java sur :2222 — Dashboard sur http://localhost:8888"
+	@printf "\033[34m----> Ouvrir le dashboard sur http://localhost:8888 <----\033[0m\n"
 	@java -cp $(PEER_OUT_DIR) peer.Main & JAVA_PID=$$!; \
 	sleep 1; \
 	PYTHONPATH=src python3 -m dashboard; \
@@ -94,7 +94,6 @@ $(PEER_STAMP): $(PEER_SOURCES) | $(PEER_OUT_DIR)
 
 # Compile + lance le tracker C
 tracker: stop-tracker $(TRACKER_BIN)
-	@echo "[TRACKER] Tracker sur le port $(TRACKER_PORT)"
 	$(TRACKER_BIN) $(TRACKER_PORT)
 
 stop-tracker:
