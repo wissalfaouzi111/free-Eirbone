@@ -1,4 +1,3 @@
-package peer;
 
 class FileInfo
 {

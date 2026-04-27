@@ -1,4 +1,3 @@
-package peer;
 import java.io.*;
 
 class Config {

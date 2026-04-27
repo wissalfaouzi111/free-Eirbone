@@ -1,4 +1,3 @@
-package peer;
 import java.io.*;
 import java.security.MessageDigest;
 import java.util.*;
@@ -32,7 +31,7 @@ public class Announce
 
         announce.append("announce listen ");
         announce.append(config.listenPort);
-        announce.append( " seed [");
+        announce.append( " seed [ ");
         boolean b=true;
 
         for(File f : config.files){

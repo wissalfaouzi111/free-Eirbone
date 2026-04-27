@@ -1,4 +1,3 @@
-package peer;
 public class MockReseau implements IReseau {
 
     @Override

@@ -1,4 +1,3 @@
-package peer;
 import java.util.*;
 
 public class PeerState {
