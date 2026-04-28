@@ -20,7 +20,7 @@ TRACKER_PORT ?= 8080
 TEST_PORT ?= 8081
 TEST_MULTI_PORT ?= 8082
 
-.PHONY: all tracker peer build-peer tests test run-tests run-tracker run-server stop-tracker clean help
+.PHONY: all tracker peer build-peer run-peer tests test run-tests run-tracker run-server stop-tracker clean help
 
 all: $(TRACKER_BIN) $(TEST_BIN) $(TEST_SERVER_BIN) $(TEST_FILE_BIN) $(TEST_CLIENT_BIN) $(TEST_MULTI_CLIENTS_BIN) $(TEST_PEERS_BIN)
 
@@ -81,6 +81,10 @@ test: tests run-tests
 peer: $(PEER_STAMP)
 	@printf "\033[34m----> Ouvrir le dashboard sur http://localhost:8888 <----\033[0m\n"
 	PYTHONPATH=src python3 -m dashboard
+
+# Lance newMain directement (tests manuels, sans dashboard)
+run-peer: $(PEER_STAMP)
+	$(JAVA) -cp $(PEER_OUT_DIR) newMain
 
 # Compilation Java seule (sans lancer)
 build-peer: $(PEER_STAMP)

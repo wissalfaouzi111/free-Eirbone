@@ -30,10 +30,15 @@ public class newMain {
 
         Thread.sleep(500);
 
-        Socket trackerSocket = new Socket(
-                config.trackerHost,
-                Integer.parseInt(config.trackerPort)
-        );
+        Socket trackerSocket;
+        try {
+            trackerSocket = new Socket(config.trackerHost, Integer.parseInt(config.trackerPort));
+        } catch (ConnectException e) {
+            System.err.println("[ERREUR] Impossible de joindre le tracker "
+                + config.trackerHost + ":" + config.trackerPort);
+            System.err.println("         Lance d'abord : make tracker");
+            return;
+        }
 
         InputStream trackerIn = trackerSocket.getInputStream();
 
