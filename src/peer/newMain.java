@@ -5,8 +5,7 @@ import java.util.*;
 public class newMain {
 
     private static final String DOWNLOADS_DIR = "data/downloads";
-    private static int passed = 0;
-    private static int failed = 0;
+    private static final int MAX_BATCH = 16;
 
     public static void main(String[] args) throws Exception {
         new File("data/downloads").mkdirs();
@@ -15,72 +14,21 @@ public class newMain {
 
         Announce proto = new Announce();
 
-        step("CHARGEMENT CONFIG");
         Config config = Config.load("config.ini");
-
-        log("trackerHost = " + config.trackerHost);
-        log("trackerPort = " + config.trackerPort);
-        log("listenPort  = " + config.listenPort);
-
-        step("CHARGEMENT FICHIERS LOCAUX");
 
         PeerState state = new PeerState();
 
         File dir = new File(DOWNLOADS_DIR);
         File[] files = dir.listFiles();
+        config.files = files;
 
-        String firstKey = null;
-        String firstFilename = null;
-        int firstPieces = 0;
-
-        if (files != null) {
-            for (File f : files) {
-                if (!f.isFile()) continue;
-
-                FileMetadata meta = new FileChunker(f).getMetadata();
-
-                FileInfo fi = new FileInfo(
-                        meta.getFilename(),
-                        meta.getLength(),
-                        meta.getPieceSize(),
-                        meta.getKey()
-                );
-
-                DownloadState ds = new DownloadState(fi);
-                loadRealPiecesIntoStorage(f, ds);
-                state.addDownload(ds);
-
-                log("Fichier chargé : " + fi.getFilename()
-                        + " | pieces=" + fi.totalPieces()
-                        + " | key=" + fi.getKey());
-
-                if (firstKey == null) {
-                    firstKey = fi.getKey();
-                    firstFilename = fi.getFilename();
-                    firstPieces = fi.totalPieces();
-                }
-            }
-        }
-
-        check("Au moins un fichier dans data/downloads", firstKey != null);
-
-        if (firstKey == null) {
-            log("Crée un fichier avec :");
-            log("echo bonjour > data/downloads/test.txt");
-            return;
-        }
-
-        step("DEMARRAGE PEER SERVER");
+        loadLocalFiles(state, files);
 
         Thread serverThread = new Thread(new PeerServer(config, state));
         serverThread.setDaemon(true);
         serverThread.start();
 
         Thread.sleep(500);
-
-        check("PeerServer démarré", serverThread.isAlive());
-
-        step("CONNEXION TRACKER");
 
         Socket trackerSocket = new Socket(
                 config.trackerHost,
@@ -94,148 +42,245 @@ public class newMain {
                 true
         );
 
-        check("Connexion Tracker établie", trackerSocket.isConnected());
-
-        step("ANNOUNCE");
+        System.out.println("[OK] Connecté au tracker");
 
         String announceMsg = proto.announce(config);
-
-        log("→ " + announceMsg.trim());
         trackerWriter.print(announceMsg);
         trackerWriter.flush();
 
-        String okAnnounce = readAsciiLine(trackerIn);
-        log("← " + okAnnounce);
+        String ok = readAsciiLine(trackerIn);
+        System.out.println("[TRACKER] " + ok);
 
-        check("Tracker répond ok à announce", "ok".equals(okAnnounce));
+        Scanner scanner = new Scanner(System.in);
 
-        step("LOOK");
+        while (true) {
+            System.out.println();
+            System.out.print("Nom du fichier à chercher/télécharger (ou quit) > ");
+            String filename = scanner.nextLine().trim();
 
-        String lookMsg = proto.look(firstFilename);
+            if (filename.equalsIgnoreCase("quit") || filename.equalsIgnoreCase("exit")) {
+                break;
+            }
 
-        log("→ " + lookMsg.trim());
+            if (filename.isEmpty()) {
+                continue;
+            }
+
+            downloadByFilename(filename, proto, state, trackerWriter, trackerIn);
+        }
+
+        trackerSocket.close();
+        scanner.close();
+
+        System.out.println("Fin du programme.");
+    }
+
+    private static void downloadByFilename(
+            String filename,
+            Announce proto,
+            PeerState state,
+            PrintWriter trackerWriter,
+            InputStream trackerIn
+    ) throws Exception {
+
+        System.out.println("\n===== LOOK =====");
+
+        String lookMsg = proto.look(filename);
+        System.out.println("→ " + lookMsg.trim());
+
         trackerWriter.print(lookMsg);
         trackerWriter.flush();
 
         String listResponse = readAsciiLine(trackerIn);
-        log("← " + listResponse);
+        System.out.println("← " + listResponse);
 
-        check("Réponse list reçue", listResponse != null && listResponse.startsWith("list"));
+        List<FileInfo> files = TrackerResponse.parseListResponse(listResponse);
 
-        List<FileInfo> foundFiles = TrackerResponse.parseListResponse(listResponse);
-        check("Fichier trouvé avec look", !foundFiles.isEmpty());
+        if (files.isEmpty()) {
+            System.out.println("[ERREUR] Aucun fichier trouvé avec ce nom.");
+            return;
+        }
 
-        step("GETFILE");
+        FileInfo file = files.get(0);
 
-        String getfileMsg = proto.getfile(firstKey);
+        System.out.println("[OK] Fichier trouvé : " + file.getFilename());
+        System.out.println("     taille = " + file.getLength());
+        System.out.println("     key    = " + file.getKey());
 
-        log("→ " + getfileMsg.trim());
+        DownloadState ds = state.getDownload(file.getKey());
+
+        if (ds == null) {
+            ds = new DownloadState(file);
+            state.addDownload(ds);
+        }
+
+        if (ds.isComplete()) {
+            System.out.println("[INFO] Tu as déjà ce fichier complet.");
+            return;
+        }
+
+        System.out.println("\n===== GETFILE =====");
+
+        String getfileMsg = proto.getfile(file.getKey());
+        System.out.println("→ " + getfileMsg.trim());
+
         trackerWriter.print(getfileMsg);
         trackerWriter.flush();
 
         String peersResponse = readAsciiLine(trackerIn);
-        log("← " + peersResponse);
-
-        check("Réponse peers reçue", peersResponse != null && peersResponse.startsWith("peers"));
+        System.out.println("← " + peersResponse);
 
         PeersResult peersResult = TrackerResponse.parsePeersResponse(peersResponse);
-        check("Peers parsés", peersResult != null);
 
-        if (peersResult != null) {
-            log("Nombre de peers reçus : " + peersResult.peers.size());
+        if (peersResult == null || peersResult.peers.isEmpty()) {
+            System.out.println("[ERREUR] Aucun peer ne possède ce fichier.");
+            return;
         }
 
-        step("CONNEXION PEER LOCAL + INTERESTED");
+        state.setPeers(file.getKey(), peersResult.peers);
 
-        Socket peerSocket = new Socket("127.0.0.1", Integer.parseInt(config.listenPort));
+        System.out.println("[OK] Nombre de peers : " + peersResult.peers.size());
 
-        InputStream peerIn = peerSocket.getInputStream();
+        for (PeerInfo peer : peersResult.peers) {
+            if (ds.isComplete()) break;
 
-        PrintWriter peerWriter = new PrintWriter(
-                new BufferedWriter(new OutputStreamWriter(peerSocket.getOutputStream())),
+            try {
+                downloadFromPeer(peer, file, ds, proto);
+            } catch (Exception e) {
+                System.out.println("[WARN] Peer indisponible "
+                        + peer.getIp() + ":" + peer.getPort()
+                        + " : " + e.getMessage());
+            }
+        }
+
+        if (ds.isComplete()) {
+            ds.getStorage().finalizeDownload(file.getFilename());
+            System.out.println("[OK] Téléchargement terminé : data/complete/" + file.getFilename());
+        } else {
+            int done = ds.getBufferMap().cardinality();
+            int total = file.totalPieces();
+            System.out.println("[INFO] Téléchargement partiel : " + done + "/" + total + " pièces.");
+        }
+    }
+
+    private static void downloadFromPeer(
+            PeerInfo peer,
+            FileInfo file,
+            DownloadState ds,
+            Announce proto
+    ) throws Exception {
+
+        System.out.println("\n===== CONNEXION PEER " + peer.getIp() + ":" + peer.getPort() + " =====");
+
+        Socket socket = new Socket(peer.getIp(), peer.getPort());
+
+        InputStream in = socket.getInputStream();
+
+        PrintWriter writer = new PrintWriter(
+                new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())),
                 true
         );
 
-        check("Connexion au peer local", peerSocket.isConnected());
+        String interestedMsg = proto.interested(file.getKey());
+        System.out.println("→ " + interestedMsg.trim());
 
-        String interestedMsg = proto.interested(firstKey);
+        writer.print(interestedMsg);
+        writer.flush();
 
-        log("→ " + interestedMsg.trim());
-        peerWriter.print(interestedMsg);
-        peerWriter.flush();
+        String haveResponse = readAsciiLine(in);
+        System.out.println("← " + haveResponse);
 
-        String haveResponse = readAsciiLine(peerIn);
-        log("← " + haveResponse);
-
-        check("Réponse have reçue", haveResponse != null && haveResponse.startsWith("have"));
-        check("have contient la bonne key", haveResponse != null && haveResponse.contains(firstKey));
-
-        step("GETPIECES");
-
-        List<Integer> indices = new ArrayList<>();
-        int nbPieces = Math.min(3, firstPieces);
-
-        for (int i = 0; i < nbPieces; i++) {
-            indices.add(i);
+        if (haveResponse == null || !haveResponse.startsWith("have")) {
+            socket.close();
+            return;
         }
 
-        String getpiecesMsg = proto.getpieces(firstKey, indices);
-
-        log("→ " + getpiecesMsg.trim());
-        peerWriter.print(getpiecesMsg);
-        peerWriter.flush();
-
-        String dataHeader = readAsciiLine(peerIn);
-        log("← " + dataHeader);
-
-        check("Header data reçu", dataHeader != null && dataHeader.startsWith("data"));
-
-        int totalBytes = totalBytesFromDataHeader(dataHeader);
-        log("Octets binaires à lire = " + totalBytes);
-
-        if (totalBytes > 0) {
-            byte[] payload = readExactly(peerIn, totalBytes);
-            check("Payload reçue", payload.length == totalBytes);
-            log("Premiers octets : " + bytesToHex(payload, Math.min(16, payload.length)));
-        } else {
-            check("Payload non vide", false);
+        String[] parts = haveResponse.split("\\s+", 3);
+        if (parts.length < 3) {
+            socket.close();
+            return;
         }
 
-        step("HAVE PERIODIQUE");
+        BitSet remoteMap = decodeBuffermap(parts[2], file.totalPieces());
 
-        DownloadState dl = state.getDownload(firstKey);
-        String bm = encodeBuffermap(dl.getBufferMap(), firstPieces);
-        String haveMsg = "have " + firstKey + " " + bm + "\n";
+        while (!ds.isComplete()) {
+            List<Integer> wanted = choosePiecesToDownload(remoteMap, ds, file.totalPieces());
 
-        log("→ have " + firstKey + " <buffermap>");
-        peerWriter.print(haveMsg);
-        peerWriter.flush();
+            if (wanted.isEmpty()) {
+                break;
+            }
 
-        String haveBack = readAsciiLine(peerIn);
-        log("← " + haveBack);
+            String getpiecesMsg = proto.getpieces(file.getKey(), wanted);
+            System.out.println("→ " + getpiecesMsg.trim());
 
-        check("Réponse have périodique reçue", haveBack != null && haveBack.startsWith("have"));
+            writer.print(getpiecesMsg);
+            writer.flush();
 
-        step("UPDATE TRACKER");
+            String dataHeader = readAsciiLine(in);
+            System.out.println("← " + dataHeader);
 
-        String updateMsg = "update seed [ " + firstKey + " ] leech [ ]\n";
+            if (dataHeader == null || !dataHeader.startsWith("data")) {
+                break;
+            }
 
-        log("→ " + updateMsg.trim());
-        trackerWriter.print(updateMsg);
-        trackerWriter.flush();
+            List<int[]> piecesInfo = parseDataHeader(dataHeader);
 
-        String okUpdate = readAsciiLine(trackerIn);
-        log("← " + okUpdate);
+            for (int[] info : piecesInfo) {
+                int index = info[0];
+                int length = info[1];
 
-        check("Tracker répond ok à update", "ok".equals(okUpdate));
+                byte[] data = readExactly(in, length);
+                ds.writePiece(index, data);
 
-        peerSocket.close();
-        trackerSocket.close();
+                System.out.println("[OK] Pièce reçue : " + index
+                        + " (" + ds.getBufferMap().cardinality()
+                        + "/" + file.totalPieces() + ")");
+            }
+        }
 
-        System.out.println();
-        System.out.println("════════════════════════════════════");
-        System.out.println("RESULTAT : " + passed + " PASSED / " + failed + " FAILED");
-        System.out.println("════════════════════════════════════");
+        socket.close();
+    }
+
+    private static List<Integer> choosePiecesToDownload(BitSet remoteMap, DownloadState ds, int totalPieces) {
+        List<Integer> wanted = new ArrayList<>();
+
+        for (int i = 0; i < totalPieces; i++) {
+            if (remoteMap.get(i) && !ds.hasPiece(i)) {
+                wanted.add(i);
+            }
+
+            if (wanted.size() >= MAX_BATCH) {
+                break;
+            }
+        }
+
+        return wanted;
+    }
+
+    private static void loadLocalFiles(PeerState state, File[] files) throws IOException {
+        if (files == null) return;
+
+        for (File f : files) {
+            if (!f.isFile()) continue;
+
+            FileMetadata meta = new FileChunker(f).getMetadata();
+
+            FileInfo fi = new FileInfo(
+                    meta.getFilename(),
+                    meta.getLength(),
+                    meta.getPieceSize(),
+                    meta.getKey()
+            );
+
+            DownloadState ds = new DownloadState(fi);
+            loadRealPiecesIntoStorage(f, ds);
+
+            state.addDownload(ds);
+
+            System.out.println("[LOCAL] " + fi.getFilename()
+                    + " | pieces=" + fi.totalPieces()
+                    + " | key=" + fi.getKey());
+        }
     }
 
     private static void loadRealPiecesIntoStorage(File file, DownloadState ds) throws IOException {
@@ -286,70 +331,41 @@ public class newMain {
         return data;
     }
 
-    private static int totalBytesFromDataHeader(String header) {
-        if (header == null) return 0;
+    private static BitSet decodeBuffermap(String base64, int totalPieces) {
+        byte[] bytes = Base64.getDecoder().decode(base64);
+        BitSet bs = new BitSet(totalPieces);
+
+        for (int i = 0; i < totalPieces; i++) {
+            if (i / 8 < bytes.length) {
+                if ((bytes[i / 8] & (1 << (7 - (i % 8)))) != 0) {
+                    bs.set(i);
+                }
+            }
+        }
+
+        return bs;
+    }
+
+    private static List<int[]> parseDataHeader(String header) {
+        List<int[]> result = new ArrayList<>();
 
         int open = header.indexOf('[');
         int close = header.indexOf(']');
 
-        if (open < 0 || close < 0 || close <= open) return 0;
+        if (open < 0 || close < 0 || close <= open) return result;
 
         String inside = header.substring(open + 1, close).trim();
 
-        if (inside.isEmpty()) return 0;
+        if (inside.isEmpty()) return result;
 
         String[] tokens = inside.split("\\s+");
 
-        int total = 0;
-
-        for (int i = 1; i < tokens.length; i += 2) {
-            total += Integer.parseInt(tokens[i]);
+        for (int i = 0; i + 1 < tokens.length; i += 2) {
+            int index = Integer.parseInt(tokens[i]);
+            int length = Integer.parseInt(tokens[i + 1]);
+            result.add(new int[]{index, length});
         }
 
-        return total;
-    }
-
-    private static String encodeBuffermap(BitSet bm, int totalPieces) {
-        int nbBytes = (totalPieces + 7) / 8;
-        byte[] bytes = new byte[nbBytes];
-
-        for (int i = 0; i < totalPieces; i++) {
-            if (bm.get(i)) {
-                bytes[i / 8] |= (byte) (1 << (7 - (i % 8)));
-            }
-        }
-
-        return Base64.getEncoder().encodeToString(bytes);
-    }
-
-    private static String bytesToHex(byte[] data, int max) {
-        StringBuilder sb = new StringBuilder();
-
-        for (int i = 0; i < max; i++) {
-            sb.append(String.format("%02x ", data[i]));
-        }
-
-        return sb.toString();
-    }
-
-    private static void step(String title) {
-        System.out.println();
-        System.out.println("────────────────────────────────────");
-        System.out.println("TEST : " + title);
-        System.out.println("────────────────────────────────────");
-    }
-
-    private static void log(String msg) {
-        System.out.println("  " + msg);
-    }
-
-    private static void check(String label, boolean condition) {
-        if (condition) {
-            System.out.println("  [PASSED] " + label);
-            passed++;
-        } else {
-            System.out.println("  [FAILED] " + label);
-            failed++;
-        }
+        return result;
     }
 }
