@@ -50,6 +50,15 @@ int main() {
     free(m4);
     printf("OK!\n");
 
+    // 5. TEST MESSAGE VIDE
+    printf("Test 5: Message vide... ");
+    char msg_vide[] = "\n";
+    MessageP2P *m5 = add_message(msg_vide);
+    assert(m5 != NULL);
+    assert(strcmp(m5->commande, "") == 0);
+    free(m5);
+    printf("OK!\n");
+
     printf("✅ TOUS LES TESTS PARSING REUSSIS\n\n");
     return 0;
 }
