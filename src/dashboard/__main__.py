@@ -1,3 +1,4 @@
+import errno
 import http.client, http.server, json, os, subprocess, sys
 
 PORT, API_PORT = 8888, 8887
@@ -40,5 +41,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 try:
     print(f"Dashboard: http://localhost:{PORT}")
     http.server.HTTPServer(("localhost", PORT), Handler).serve_forever()
+except OSError as e:
+    if e.errno == errno.EADDRINUSE:
+        print(f"Dashboard deja actif sur http://localhost:{PORT}")
+    else:
+        raise
 finally:
     java.terminate()  # coupe Java quand Python s'arrête
