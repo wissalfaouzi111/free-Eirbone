@@ -168,7 +168,13 @@ MessageP2P *parse_getfile(char **tokens, int n, MessageP2P *msg)
 // FONCTION PRINCIPALE
 MessageP2P *add_message(char str[])
 {
+    if (str == NULL)
+        return NULL;
+
     MessageP2P *msg = malloc(sizeof(MessageP2P));
+    if (msg == NULL)
+        return NULL;
+
     memset(msg, 0, sizeof(MessageP2P));
 
     str[strcspn(str, "\r\n")] = '\0'; // remplacer le caractère de fin\r\n par \0
