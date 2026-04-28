@@ -77,13 +77,10 @@ run-tests: all
 
 test: tests run-tests
 
-# Compile + lance le peer Java ET le dashboard Python en parallèle
+# Compile + lance le peer Java ET le dashboard Python (Python démarre Java)
 peer: $(PEER_STAMP)
 	@printf "\033[34m----> Ouvrir le dashboard sur http://localhost:8888 <----\033[0m\n"
-	@java -cp $(PEER_OUT_DIR) peer.Main & JAVA_PID=$$!; \
-	sleep 1; \
-	PYTHONPATH=src python3 -m dashboard; \
-	kill $$JAVA_PID 2>/dev/null; true
+	PYTHONPATH=src python3 -m dashboard
 
 # Compilation Java seule (sans lancer)
 build-peer: $(PEER_STAMP)
