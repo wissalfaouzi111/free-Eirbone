@@ -28,7 +28,6 @@ data/*
 *.fdb_latexmk
 *.out
 *.toc
-*.ini
 
 # Fichiers systèmes
 .DS_Store
