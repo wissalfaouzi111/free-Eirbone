@@ -10,19 +10,15 @@ public class Announce
     private static final int PIECE_SIZE = 1024;
 
 
-    public String look ( String... criteres)
-    {
+    public String look(String... criteres) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append("look [");
-        for(String critere : criteres){
-             sb.append(critere + " ");
+        sb.append("look [ ");
+        for (String critere : criteres) {
+            sb.append(critere).append(" ");
         }
-        if( criteres.length > 0){
-             sb.deleteCharAt(sb.length() - 1);
-        }
-        sb.append("]");
-        sb.append("\n");
+        sb.append("]\n");
+
         return sb.toString();
     }
 
@@ -31,7 +27,7 @@ public class Announce
 
         announce.append("announce listen ");
         announce.append(config.listenPort);
-        announce.append( " seed [ ");
+        announce.append(" seed [ ");
         boolean b=true;
 
         for(File f : config.files){
@@ -49,14 +45,14 @@ public class Announce
                 announce.append(PIECE_SIZE);
                 announce.append(" ");
                 announce.append(md5);
+                announce.append(" ");
 
                 b = false;
 
             }
         }
         
-        announce.append("] leech []");
-        announce.append("\n");
+        announce.append("] leech [ ]\n");
         return announce.toString();
 
     }
@@ -90,7 +86,7 @@ public class Announce
         StringBuilder sb = new StringBuilder();
         sb.append("getpieces ");
         sb.append(key);
-        sb.append(" [");
+        sb.append(" [ ");
         for (int i=0; i<indices.size(); i++){
             if(i>0){
                 sb.append(" ");
