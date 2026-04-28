@@ -7,7 +7,7 @@ HTML = open(os.path.join(here, "index.html"), encoding="utf-8").read().encode()
 CSS  = open(os.path.join(here, "style.css"),  encoding="utf-8").read().encode()
 
 os.makedirs("data", exist_ok=True)
-java = subprocess.Popen(["java", "-cp", "bin/peer", "newMain"], stdout=sys.stdout, stderr=sys.stderr)
+java = subprocess.Popen(["java", "-cp", "bin/peer", "Main"], stdout=sys.stdout, stderr=sys.stderr)
 
 class Handler(http.server.BaseHTTPRequestHandler):
 

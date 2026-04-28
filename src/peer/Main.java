@@ -2,6 +2,8 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+// Lancé par le dashboard Python (make peer).
+// Démarre PeerServer + PeerAPI et tourne indéfiniment.
 public class Main {
 
     public static void main(String[] args) throws Exception {
@@ -11,77 +13,53 @@ public class Main {
 
         Config config = Config.load("config.ini");
 
-        // Charger les fichiers locaux dans PeerState
+        // charger les fichiers locaux dans PeerState
         PeerState state = new PeerState();
-        File dir = new File("data/downloads");
-        File[] files = dir.listFiles();
+        File[] files = new File("data/downloads").listFiles();
         if (files != null) {
             for (File f : files) {
                 if (!f.isFile()) continue;
                 FileMetadata meta = new FileChunker(f).getMetadata();
-                FileInfo fi = new FileInfo(
-                    meta.getFilename(), meta.getLength(),
-                    meta.getPieceSize(), meta.getKey()
-                );
+                FileInfo fi = new FileInfo(meta.getFilename(), meta.getLength(), meta.getPieceSize(), meta.getKey());
                 DownloadState ds = new DownloadState(fi);
-                loadPieces(f, ds);
+                chargerPieces(f, ds);
                 state.addDownload(ds);
-                System.out.println("[Peer] fichier: " + fi.getFilename()
-                    + " | pieces=" + fi.totalPieces() + " | key=" + fi.getKey());
+                System.out.println("[Main] fichier: " + fi.getFilename() + " | key=" + fi.getKey());
             }
         }
 
-        // Démarrer le serveur pair (sert les fichiers aux autres peers)
-        Thread peerServer = new Thread(new PeerServer(config, state));
-        peerServer.setDaemon(true);
-        peerServer.start();
-        System.out.println("[Peer] PeerServer sur port " + config.listenPort);
+        // démarrer le serveur pair (sert les fichiers aux autres peers)
+        new Thread(new PeerServer(config, state)).start();
+        System.out.println("[Main] PeerServer sur port " + config.listenPort);
 
-        // Démarrer l'API HTTP pour le dashboard
-        Thread apiThread = new Thread(new PeerAPI(config, state));
-        apiThread.setDaemon(true);
-        apiThread.start();
+        // démarrer l'API HTTP pour le dashboard Python
+        new Thread(new PeerAPI(config, state)).start();
 
-        
-
-        // Annoncer au tracker
+        // annoncer au tracker
         try {
             Socket ts = new Socket(config.trackerHost, Integer.parseInt(config.trackerPort));
-            ts.setSoTimeout(5000);
-            PrintWriter tw = new PrintWriter(
-                new BufferedWriter(new OutputStreamWriter(ts.getOutputStream())), true);
-
-            StringBuilder announce = new StringBuilder("announce listen ")
-                .append(config.listenPort).append(" seed [ ");
+            PrintWriter tw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(ts.getOutputStream())), true);
+            StringBuilder ann = new StringBuilder("announce listen ").append(config.listenPort).append(" seed [ ");
             for (DownloadState ds : state.downloads.values()) {
                 FileInfo fi = ds.file;
-                announce.append(fi.getFilename()).append(" ")
-                        .append(fi.getLength()).append(" ")
-                        .append(fi.getPieceSize()).append(" ")
-                        .append(fi.getKey()).append(" ");
+                ann.append(fi.getFilename()).append(" ").append(fi.getLength()).append(" ")
+                   .append(fi.getPieceSize()).append(" ").append(fi.getKey()).append(" ");
             }
-            announce.append("] leech [ ]");
-
-            tw.println(announce.toString());
-            tw.flush();
+            tw.println(ann.append("] leech [ ]"));
             ts.close();
-            System.out.println("[Peer] announce envoyé au tracker");
-        } catch (Exception e) {
-            System.err.println("[Peer] announce échoué: " + e.getMessage());
+            System.out.println("[Main] announce envoyé");
+        } catch (ConnectException e) {
+            System.err.println("[Main] tracker injoignable, announce ignoré");
         }
 
-        // Attendre indéfiniment
-        Thread.currentThread().join();
+        Thread.currentThread().join(); // attendre indéfiniment
     }
 
-    private static void loadPieces(File file, DownloadState ds) throws IOException {
-        int pieceSize = ds.file.getPieceSize();
+    private static void chargerPieces(File file, DownloadState ds) throws IOException {
         try (FileInputStream fis = new FileInputStream(file)) {
-            byte[] buffer = new byte[pieceSize];
-            int read, index = 0;
-            while ((read = fis.read(buffer)) != -1) {
-                ds.writePiece(index++, Arrays.copyOf(buffer, read));
-            }
+            byte[] buf = new byte[ds.file.getPieceSize()];
+            int lu, idx = 0;
+            while ((lu = fis.read(buf)) != -1) ds.writePiece(idx++, Arrays.copyOf(buf, lu));
         }
     }
 }
