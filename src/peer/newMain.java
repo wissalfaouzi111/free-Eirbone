@@ -4,11 +4,11 @@ import java.util.*;
 
 public class newMain {
 
-    private static final String DOWNLOADS_DIR = "data/downloads";
+    private static final String DOWNLOADS_DIR = "data/complete";
     private static final int MAX_BATCH = 16;
 
     public static void main(String[] args) throws Exception {
-        new File("data/downloads").mkdirs();
+        
         new File("data/incomplete").mkdirs();
         new File("data/complete").mkdirs();
 
