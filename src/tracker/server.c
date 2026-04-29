@@ -116,6 +116,10 @@ int answer(MessageP2P *msg, char *response, Client *client) {
 }
 
 static void close_client_connection(int client_fd, fd_set *master_set) {
+    Client *client = get_client(client_fd);
+    if (client) {
+        remove_peer_from_all_files(client_get_ip(client));
+    }
     remove_client(client_fd);
     close(client_fd);
     FD_CLR(client_fd, master_set);

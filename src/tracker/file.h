@@ -39,4 +39,6 @@ FichierInfo* trouver_fichier_par_nom(const char *nom);
 
 char* generer_liste_peers_pour_fichier(const char *cle_md5);
 
+void remove_peer_from_all_files(const char *ip);
+
 #endif /* __FILE_H__ */

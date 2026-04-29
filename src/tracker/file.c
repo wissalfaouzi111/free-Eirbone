@@ -186,3 +186,34 @@ char* generer_liste_peers_pour_fichier(const char *cle_md5) {
     snprintf(buffer + pos, 1024 - pos, " ]");
     return buffer;
 }
+
+void remove_peer_from_all_files(const char *ip) {
+    if (!ip) return;
+    for (int i = 0; i < NB_BUCKETS; i++) {
+        HashNodeMD5 *node = table_md5[i];
+        while (node) {
+            FichierTracker *ft = node->file_tracker;
+            if (ft) {
+                PeerListNode *curr = ft->peers_head;
+                PeerListNode *prev = NULL;
+                while (curr) {
+                    if (strcmp(get_peer_ip(curr->peer), ip) == 0) {
+                        if (prev) {
+                            prev->next = curr->next;
+                        } else {
+                            ft->peers_head = curr->next;
+                        }
+                        PeerListNode *temp = curr;
+                        curr = curr->next;
+                        free(temp);
+                        ft->nb_peers--;
+                    } else {
+                        prev = curr;
+                        curr = curr->next;
+                    }
+                }
+            }
+            node = node->next;
+        }
+    }
+}
