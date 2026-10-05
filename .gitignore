@@ -34,4 +34,4 @@ data/*
 Thumbs.db
 bin/*
 
-__pycache__
+__pycache__config.ini
